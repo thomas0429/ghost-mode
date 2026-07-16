@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Imperium Composer — AI Assistant Control Center</title>
+<style>
+:root {
+  --gold:#C9A84C; --gold-light:#F2D27A; --gold-dim:rgba(201,168,76,0.10);
+  --dark:#03050E; --panel:#080B18; --surface:#0D1025; --surface2:#111528;
+  --border:rgba(201,168,76,0.18); --border-bright:rgba(201,168,76,0.5);
+  --text:#E8E8F4; --muted:rgba(232,232,244,0.45);
+  --green:#22c55e; --red:#ef4444; --blue:#60a5fa; --purple:#a78bfa;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;background:var(--dark);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:60px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:700;color:var(--gold-light);letter-spacing:.03em;}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.save-all-btn{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#000;border:none;padding:8px 22px;border-radius:8px;font-weight:700;font-size:.85rem;cursor:pointer;letter-spacing:.04em;transition:opacity .2s;}
+.save-all-btn:hover{opacity:.85;}
+.status-bar{font-size:.78rem;color:var(--muted);}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 60px);}
+
+/* SIDEBAR */
+.sidebar{background:var(--panel);border-right:1px solid var(--border);padding:20px 0;}
+.sidebar-title{font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;padding:0 20px 12px;}
+.agent-tab{display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;font-size:.9rem;}
+.agent-tab:hover{background:var(--gold-dim);}
+.agent-tab.active{border-left-color:var(--gold);background:var(--gold-dim);color:var(--gold-light);}
+.agent-dot{width:9px;height:9px;border-radius:50%;background:var(--green);}
+.agent-name{font-weight:600;}
+.agent-model-label{font-size:.72rem;color:var(--muted);}
+
+.sidebar-section{margin-top:24px;padding:0 20px 12px;font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
+
+/* MAIN */
+.main{padding:28px 36px;overflow-y:auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+.page-title{font-size:1.4rem;font-weight:700;color:var(--gold-light);}
+.page-sub{font-size:.83rem;color:var(--muted);margin-top:3px;}
+.save-btn{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;font-size:.88rem;cursor:pointer;transition:opacity .2s;}
+.save-btn:hover{opacity:.85;}
+
+/* SECTIONS */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+.section-title{font-size:.88rem;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:8px;}
+.section-body{padding:20px;}
+.chevron{font-size:.75rem;color:var(--muted);transition:transform .2s;}
+.section.collapsed .chevron{transform:rotate(-90deg);}
+.section.collapsed .section-body{display:none;}
+
+/* FORM FIELDS */
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.field-row.triple{grid-template-columns:1fr 1fr 1fr;}
+.field-row.single{grid-template-columns:1fr;}
+.field{display:flex;flex-direction:column;gap:6px;}
+label{font-size:.78rem;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;}
+input[type=text],input[type=number],select,textarea{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:10px 13px;font-size:.88rem;font-family:inherit;
+  outline:none;transition:border-color .15s;width:100%;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);}
+textarea{resize:vertical;min-height:120px;line-height:1.55;}
+.textarea-prompt{min-height:220px;}
+select option{background:#0D1025;}
+
+/* SLIDER */
+.slider-row{display:flex;align-items:center;gap:12px;}
+input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;}
+.slider-val{min-width:36px;text-align:right;font-size:.85rem;font-weight:700;color:var(--gold);}
+
+/* TOOLS */
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.tool-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+.tool-info{display:flex;flex-direction:column;gap:2px;}
+.tool-name{font-size:.85rem;font-weight:700;}
+.tool-url{font-size:.7rem;color:var(--muted);word-break:break-all;}
+.tool-url input{background:none;border:none;color:var(--muted);font-size:.7rem;width:100%;padding:0;margin-top:3px;border-bottom:1px solid var(--border);}
+.tool-url input:focus{outline:none;border-bottom-color:var(--gold);}
+.tool-toggle{width:36px;height:20px;background:var(--green);border-radius:10px;cursor:pointer;flex-shrink:0;border:none;position:relative;transition:background .2s;}
+.tool-toggle.off{background:var(--border);}
+.tool-toggle::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .15s;}
+.tool-toggle.off::after{left:3px;}
+.tool-toggle:not(.off)::after{left:19px;}
+
+/* IDLE MSGS */
+.idle-list{display:flex;flex-direction:column;gap:8px;}
+.idle-item{display:flex;gap:8px;align-items:center;}
+.idle-item input{flex:1;}
+.idle-item button{background:none;border:1px solid var(--border);color:var(--red);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:.85rem;}
+.add-btn{background:none;border:1px dashed var(--border);color:var(--muted);border-radius:8px;padding:8px;cursor:pointer;font-size:.82rem;margin-top:6px;width:100%;transition:all .15s;}
+.add-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* EMAIL TEMPLATES */
+.template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px;}
+.tmpl-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;text-align:center;}
+.tmpl-card:hover,.tmpl-card.active{border-color:var(--gold);background:var(--gold-dim);}
+.tmpl-card .tmpl-icon{font-size:1.4rem;display:block;margin-bottom:4px;}
+.tmpl-card .tmpl-name{font-size:.78rem;font-weight:700;}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:.88rem;font-weight:600;opacity:0;transform:translateY(10px);transition:all .25s;z-index:999;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.green{border-color:var(--green);color:var(--green);}
+.toast.red{border-color:var(--red);color:var(--red);}
+.toast.gold{border-color:var(--gold);color:var(--gold);}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700;}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green);}
+.badge-blue{background:rgba(96,165,250,.15);color:var(--blue);}
+.badge-purple{background:rgba(167,139,250,.15);color:var(--purple);}
+.badge-gold{background:var(--gold-dim);color:var(--gold);}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.hint{font-size:.75rem;color:var(--muted);margin-top:5px;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">👻</div>
+    Imperium Composer
+  </div>
+  <div class="status-bar" id="status-bar">Loading assistants…</div>
+  <button class="save-all-btn" onclick="saveAll()">💾 Save All</button>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Assistants</div>
+    <div id="agent-tabs"></div>
+    <div class="sidebar-section">Email Templates</div>
+    <div class="agent-tab" onclick="showEmailStudio()" id="email-tab">
+      <span>✉️</span>
+      <div>
+        <div class="agent-name">Email Studio</div>
+        <div class="agent-model-label">Design campaigns</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main-panel">
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;color:var(--muted);font-size:1rem;">
+      Loading your assistants…
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const VAPI_KEY = "aa3e308f-06ad-45b3-9a6b-6004d0c97edf";
+const VAPI_BASE = "https://api.vapi.ai";
+
+const ASSISTANT_IDS = [
+  "ce083e71-dda9-434f-a35b-dbb6a713b2d9",
+  "1752f04a-fba7-47d8-8210-78c8c291f26d",
+  "144974e8-54a0-417a-b32c-76fb1e156924",
+  "5078f8fa-dda7-440c-9eef-ac44290a5842"
+];
+
+let assistants = {};
+let currentId = null;
+
+const MODELS = {
+  openai:    ["gpt-4o","gpt-4o-mini","gpt-4.1","gpt-4.1-mini","gpt-4-turbo","gpt-3.5-turbo"],
+  anthropic: ["claude-sonnet-4-20250514","claude-3-5-sonnet-20240620","claude-3-opus-20240229","claude-3-haiku-20240307"],
+  google:    ["gemini-2.0-flash","gemini-1.5-pro","gemini-1.5-flash"],
+  groq:      ["llama-3.1-70b-versatile","mixtral-8x7b-32768"]
+};
+
+const VOICES_11LABS = [
+  {id:"EXAVITQu4vr4xnSDxMaL", name:"Sarah (warm, professional)"},
+  {id:"nPczCjzI2devNBz1zQrb", name:"Brian (deep, authoritative)"},
+  {id:"FGY2WhTYpPnrIDTdsKH5", name:"Laura (calm, clear)"},
+  {id:"TxGEqnHWrfWFTfGW9XjX", name:"Josh (commanding)"},
+  {id:"pNInz6obpgDQGcFmaJgB", name:"Adam (neutral male)"},
+  {id:"21m00Tcm4TlvDq8ikWAM", name:"Rachel (young female)"},
+  {id:"AZnzlk1XvdvUeBnXmlld", name:"Domi (strong female)"},
+  {id:"ErXwobaYiN019PkySvjV", name:"Antoni (well-rounded)"},
+  {id:"VR6AewLTigWG4xSOukaG", name:"Arnold (crisp male)"},
+  {id:"yoZ06aMxZJJ28mfd3POQ", name:"Sam (raspy male)"},
+];
+
+const EMAIL_TEMPLATES = [
+  {id:"follow_up",            icon:"🔄", name:"Follow-Up",       subject:"Following up from our conversation", body:`Hi [Name],\n\nGreat speaking with you today! As promised, I wanted to follow up on everything we discussed.\n\n[Summary of conversation]\n\nNext steps:\n- [Action item 1]\n- [Action item 2]\n\nFeel free to reach out with any questions. Looking forward to working together.\n\nBest,\n[Sender Name]\nImperium`},
+  {id:"proposal",             icon:"📋", name:"Proposal",         subject:"Your Custom Proposal from Imperium", body:`Dear [Name],\n\nThank you for your interest in Imperium's AI solutions. Based on our conversation, I've put together a tailored proposal for you.\n\n[PROPOSAL DETAILS]\n\nSolution: [Service]\nInvestment: [Price]/month\nDeployment: 48 hours\nROI Estimate: [ROI]\n\nThis proposal is valid for 7 days. Ready to move forward? Simply reply to this email or click the link below to get started.\n\n[CTA LINK]\n\nBest regards,\n[Sender Name]\nImperium`},
+  {id:"contract",             icon:"📝", name:"Contract",         subject:"Your Imperium Agreement — Action Required", body:`Hi [Name],\n\nExcited to get started! Your agreement is ready for review and signature.\n\nPlease review the attached contract and sign at your earliest convenience.\n\nKey terms:\n- Service: [Service Name]\n- Monthly Investment: $[Amount]\n- Start Date: [Date]\n- Term: [Duration]\n\n[SIGN HERE LINK]\n\nQuestions? Reply directly to this email.\n\nWelcome to Imperium.\n\n[Sender Name]`},
+  {id:"meeting_confirmation", icon:"📅", name:"Meeting Confirm",  subject:"Confirmed: Your Meeting with Imperium", body:`Hi [Name],\n\nYour meeting is confirmed!\n\n📅 Date: [Date]\n⏰ Time: [Time]\n📍 Format: [Video/Phone/In-Person]\n🔗 Link: [Meeting Link]\n\nAgenda:\n1. [Topic 1]\n2. [Topic 2]\n3. Q&A\n\nWe'll send a reminder 1 hour before. Looking forward to connecting!\n\n[Sender Name]\nImperium`},
+  {id:"marketing_campaign",   icon:"📣", name:"Marketing",        subject:"[Name], this changes everything for your business", body:`Hi [Name],\n\n[HOOK — one bold statement about their pain point]\n\nMost businesses lose 30% of their leads because nobody answered the phone.\n\nImperium fixes that — permanently.\n\n✅ 24/7 AI receptionist, sounds 100% human\n✅ Books appointments automatically\n✅ Qualifies leads while you sleep\n✅ Setup in 48 hours, no tech skills needed\n\nPlans start at $99/month.\n\n[STRONG CTA]\n→ Book a free 15-minute demo: [LINK]\n\nThis is the call you should have made 6 months ago.\n\n[Sender Name]\nImperium\nP.S. [Personal note based on conversation]`},
+  {id:"cold_outreach",        icon:"🎯", name:"Cold Outreach",    subject:"Quick question about [Company]", body:`Hi [Name],\n\nI'll keep this short — I noticed [observation about their business].\n\nWe help [business type] companies like yours never miss another inbound call with a 24/7 AI voice receptionist that sounds completely human.\n\nResults our clients see:\n• 40% more leads captured\n• Zero missed calls\n• Appointments booked automatically\n\nWorth a 15-minute call?\n\n[Calendar Link]\n\n[Sender Name]\nImperium`},
+  {id:"thank_you",            icon:"🙏", name:"Thank You",        subject:"Thank you, [Name] — great conversation", body:`Hi [Name],\n\nJust wanted to say thank you for taking the time to speak with us today.\n\n[Personal reference from conversation]\n\nWe're genuinely excited about the possibility of working together. You'll be hearing from us [timeline].\n\nIn the meantime, feel free to:\n→ Browse our case studies: [link]\n→ Check our FAQ: [link]\n→ Reply to this email with any questions\n\nLooking forward to what's ahead.\n\n[Sender Name]\nImperium`},
+  {id:"invoice",              icon:"💰", name:"Invoice",          subject:"Invoice #[NUM] from Imperium — Due [Date]", body:`Hi [Name],\n\nPlease find your invoice details below.\n\nInvoice #[NUM]\nDate: [Date]\nDue: [Due Date]\n\nServices:\n- [Service]: $[Amount]\n\nTotal Due: $[Total]\n\nPay securely here: [Payment Link]\n\nThank you for your business.\n\n[Sender Name]\nImperium\ncontact@buildimperium.org`},
+  {id:"onboarding",           icon:"🚀", name:"Onboarding",       subject:"Welcome to Imperium — let's get you set up 🚀", body:`Hi [Name],\n\nWelcome to Imperium! We're building something incredible together.\n\nHere's what happens next:\n\n📋 Step 1 — Setup Call (scheduled: [Date/Time])\nWe'll configure your AI receptionist to sound exactly like your brand.\n\n⚙️ Step 2 — Configuration (48 hours)\nWe build, test, and fine-tune your assistant.\n\n🚀 Step 3 — Go Live\nYour AI receptionist goes live. Never miss a call again.\n\nYour dedicated onboarding contact: [Name] | [Email]\n\nAny questions before your setup call? Just reply here.\n\nExcited to have you,\n[Sender Name]\nImperium`},
+  {id:"custom",               icon:"✏️", name:"Custom",           subject:"", body:""},
+];
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const results = await Promise.all(ASSISTANT_IDS.map(id =>
+      fetch(`${VAPI_BASE}/assistant/${id}`, {
+        headers: { Authorization: `Bearer ${VAPI_KEY}` }
+      }).then(r => r.json())
+    ));
+
+    results.forEach(a => { assistants[a.id] = a; });
+
+    buildSidebar();
+    selectAssistant(ASSISTANT_IDS[0]);
+    document.getElementById("status-bar").textContent = `${results.length} assistants loaded`;
+  } catch(e) {
+    document.getElementById("status-bar").textContent = "Error loading assistants";
+    toast("Failed to load assistants", "red");
+  }
+}
+
+function buildSidebar() {
+  const tabs = document.getElementById("agent-tabs");
+  tabs.innerHTML = "";
+  ASSISTANT_IDS.forEach(id => {
+    const a = assistants[id];
+    if (!a) return;
+    const provider = a.model?.provider || "";
+    const model = a.model?.model || "";
+    const badge = provider === "anthropic" ? "Claude" : provider === "openai" ? "OpenAI" : provider;
+    const tab = document.createElement("div");
+    tab.className = "agent-tab";
+    tab.id = `tab-${id}`;
+    tab.innerHTML = `
+      <div class="agent-dot"></div>
+      <div>
+        <div class="agent-name">${a.name}</div>
+        <div class="agent-model-label">${badge} · ${model.split("-")[0]}</div>
+      </div>`;
+    tab.onclick = () => selectAssistant(id);
+    tabs.appendChild(tab);
+  });
+}
+
+function selectAssistant(id) {
+  currentId = id;
+  document.querySelectorAll(".agent-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(`tab-${id}`)?.classList.add("active");
+  document.getElementById("email-tab")?.classList.remove("active");
+  renderAssistant(id);
+}
+
+// ── RENDER ASSISTANT ──────────────────────────────────────────────────────────
+function renderAssistant(id) {
+  const a = assistants[id];
+  const main = document.getElementById("main-panel");
+  const tools = a.model?.tools || [];
+  const idleMsgs = a.messagePlan?.idleMessages || [];
+  const provider = a.model?.provider || "openai";
+
+  const voiceModels11 = VOICES_11LABS.map(v =>
+    `<option value="${v.id}" ${a.voice?.voiceId===v.id?"selected":""}>${v.name}</option>`).join("");
+
+  const modelOptions = (MODELS[provider]||[]).map(m =>
+    `<option value="${m}" ${a.model?.model===m?"selected":""}>${m}</option>`).join("");
+
+  const providerOptions = Object.keys(MODELS).map(p =>
+    `<option value="${p}" ${provider===p?"selected":""}>${p}</option>`).join("");
+
+  const toolsHtml = tools.map((t, i) => {
+    const name = t.function?.name || t.type || "unknown";
+    const url  = t.server?.url || "";
+    const isBuiltin = t.type === "endCall" || t.type === "transferCall";
+    return `
+    <div class="tool-card" id="tool-card-${i}">
+      <div class="tool-info">
+        <div class="tool-name">${name}</div>
+        ${!isBuiltin ? `<div class="tool-url"><input id="tool-url-${id}-${i}" value="${url}" placeholder="Webhook URL" onchange="updateToolUrl(${i}, this.value)"/></div>` : `<div class="tool-url" style="color:var(--blue)">built-in</div>`}
+      </div>
+      <button class="tool-toggle ${isBuiltin?'':'off'}" id="tool-toggle-${i}" onclick="toggleTool(${i}, this)" title="Toggle tool"></button>
+    </div>`;
+  }).join("");
+
+  const idleHtml = idleMsgs.map((msg, i) => `
+    <div class="idle-item" id="idle-${i}">
+      <input type="text" value="${msg.replace(/"/g,'&quot;')}" id="idle-msg-${id}-${i}" />
+      <button onclick="removeIdle(${i})">✕</button>
+    </div>`).join("");
+
+  const bgOptions = ["off","office","nature"].map(b =>
+    `<option value="${b}" ${(a.backgroundSound||"off")===b?"selected":""}>${b.charAt(0).toUpperCase()+b.slice(1)}</option>`).join("");
+
+  main.innerHTML = `
+  <div class="page-header">
+    <div>
+      <div class="page-title">⚙️ ${a.name}</div>
+      <div class="page-sub">Assistant ID: <code style="color:var(--muted);font-size:.75rem">${id}</code> &nbsp;·&nbsp; <span class="badge badge-green">LIVE</span></div>
+    </div>
+    <button class="save-btn" onclick="saveAssistant('${id}')">💾 Save ${a.name}</button>
+  </div>
+
+  <!-- IDENTITY -->
+  <div class="section" id="sec-identity">
+    <div class="section-header" onclick="toggleSection('sec-identity')">
+      <div class="section-title">🧠 Identity & Intelligence</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Assistant Name</label>
+          <input type="text" id="f-name" value="${a.name||""}" />
+        </div>
+        <div class="field">
+          <label>AI Provider</label>
+          <select id="f-provider" onchange="onProviderChange(this.value)">${providerOptions}</select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Model</label>
+          <select id="f-model">${modelOptions}</select>
+        </div>
+        <div class="field">
+          <label>Transcriber</label>
+          <select id="f-transcriber">
+            <option value="deepgram-nova-3" ${(a.transcriber?.model||"")=="nova-3"?"selected":""}>Deepgram Nova-3 (best)</option>
+            <option value="deepgram-nova-2" ${(a.transcriber?.model||"")=="nova-2"?"selected":""}>Deepgram Nova-2</option>
+            <option value="deepgram-nova"   ${(a.transcriber?.model||"")=="nova"?"selected":""}>Deepgram Nova</option>
+            <option value="assembly-best"   >AssemblyAI Best</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Temperature <span class="hint" style="display:inline">(creativity)</span></label>
+          <div class="slider-row">
+            <input type="range" id="f-temp" min="0" max="1" step="0.05" value="${a.model?.temperature||0.7}" oninput="document.getElementById('f-temp-val').textContent=this.value"/>
+            <span class="slider-val" id="f-temp-val">${a.model?.temperature||0.7}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Max Tokens (response length)</label>
+          <div class="slider-row">
+            <input type="range" id="f-tokens" min="100" max="2000" step="50" value="${a.model?.maxTokens||500}" oninput="document.getElementById('f-tokens-val').textContent=this.value"/>
+            <span class="slider-val" id="f-tokens-val">${a.model?.maxTokens||500}</span>
+          </div>
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>System Prompt — the AI's brain</label>
+          <textarea id="f-prompt" class="textarea-prompt">${(a.model?.messages||[{}])[0]?.content||""}</textarea>
+          <div class="hint">This is the full personality, rules, and mission of the assistant. Edit freely.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOICE -->
+  <div class="section" id="sec-voice">
+    <div class="section-header" onclick="toggleSection('sec-voice')">
+      <div class="section-title">🎙️ Voice & Audio</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Voice Provider</label>
+          <select id="f-voice-provider">
+            <option value="11labs" ${a.voice?.provider==="11labs"?"selected":""}>ElevenLabs (recommended)</option>
+            <option value="vapi"   ${a.voice?.provider==="vapi"?"selected":""}>Vapi built-in</option>
+            <option value="azure"  ${a.voice?.provider==="azure"?"selected":""}>Azure</option>
+            <option value="playht" ${a.voice?.provider==="playht"?"selected":""}>PlayHT</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Voice</label>
+          <select id="f-voice-id">${voiceModels11}</select>
+        </div>
+      </div>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Stability</label>
+          <div class="slider-row">
+            <input type="range" id="f-stability" min="0" max="1" step="0.05" value="${a.voice?.stability||0.5}" oninput="document.getElementById('f-stab-val').textContent=this.value"/>
+            <span class="slider-val" id="f-stab-val">${a.voice?.stability||0.5}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Similarity Boost</label>
+          <div class="slider-row">
+            <input type="range" id="f-similarity" min="0" max="1" step="0.05" value="${a.voice?.similarityBoost||0.8}" oninput="document.getElementById('f-sim-val').textContent=this.value"/>
+            <span class="slider-val" id="f-sim-val">${a.voice?.similarityBoost||0.8}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Style / Expressiveness</label>
+          <div class="slider-row">
+            <input type="range" id="f-style" min="0" max="1" step="0.05" value="${a.voice?.style||0.3}" oninput="document.getElementById('f-style-val').textContent=this.value"/>
+            <span class="slider-val" id="f-style-val">${a.voice?.style||0.3}</span>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Background Sound</label>
+          <select id="f-bg">${bgOptions}</select>
+        </div>
+        <div class="field">
+          <label>Background Denoising</label>
+          <select id="f-denoise">
+            <option value="true"  ${a.backgroundDenoisingEnabled?"selected":""}>Enabled</option>
+            <option value="false" ${!a.backgroundDenoisingEnabled?"selected":""}>Disabled</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Response Delay (sec)</label>
+          <div class="slider-row">
+            <input type="range" id="f-delay" min="0" max="2" step="0.1" value="${a.responseDelaySeconds||0.4}" oninput="document.getElementById('f-delay-val').textContent=this.value"/>
+            <span class="slider-val" id="f-delay-val">${a.responseDelaySeconds||0.4}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Recording</label>
+          <select id="f-recording">
+            <option value="true"  ${a.artifactPlan?.recordingEnabled?"selected":""}>Enabled</option>
+            <option value="false" ${!a.artifactPlan?.recordingEnabled?"selected":""}>Disabled</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONVERSATION -->
+  <div class="section" id="sec-convo">
+    <div class="section-header" onclick="toggleSection('sec-convo')">
+      <div class="section-title">💬 Conversation Settings</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row single">
+        <div class="field">
+          <label>First Message (what it says when call starts)</label>
+          <input type="text" id="f-first" value="${(a.firstMessage||"").replace(/"/g,'&quot;')}" />
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>End Call Message</label>
+          <input type="text" id="f-endmsg" value="${(a.endCallMessage||"").replace(/"/g,'&quot;')}" />
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>End Call Trigger Phrases (comma separated)</label>
+          <input type="text" id="f-endphrases" value="${(a.endCallPhrases||[]).join(", ")}" />
+          <div class="hint">e.g. goodbye, bye, talk soon</div>
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Voicemail Message</label>
+          <input type="text" id="f-voicemail" value="${(a.voicemailMessage||"").replace(/"/g,'&quot;')}" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Silence Timeout (sec)</label>
+          <div class="slider-row">
+            <input type="range" id="f-silence" min="5" max="60" step="1" value="${a.silenceTimeoutSeconds||20}" oninput="document.getElementById('f-sil-val').textContent=this.value"/>
+            <span class="slider-val" id="f-sil-val">${a.silenceTimeoutSeconds||20}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Max Call Duration (sec)</label>
+          <div class="slider-row">
+            <input type="range" id="f-maxdur" min="300" max="7200" step="60" value="${a.maxDurationSeconds||1800}" oninput="document.getElementById('f-maxdur-val').textContent=(this.value/60).toFixed(0)+'m'"/>
+            <span class="slider-val" id="f-maxdur-val">${Math.round((a.maxDurationSeconds||1800)/60)}m</span>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <label style="font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;display:block;">Idle Messages (when caller goes quiet)</label>
+      <div class="idle-list" id="idle-list">${idleHtml}</div>
+      <button class="add-btn" onclick="addIdle()">+ Add Idle Message</button>
+      <div class="field-row" style="margin-top:14px;">
+        <div class="field">
+          <label>Idle Timeout (sec)</label>
+          <div class="slider-row">
+            <input type="range" id="f-idle-timeout" min="5" max="30" step="1" value="${a.messagePlan?.idleTimeoutSeconds||12}" oninput="document.getElementById('f-idle-val').textContent=this.value"/>
+            <span class="slider-val" id="f-idle-val">${a.messagePlan?.idleTimeoutSeconds||12}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Max Idle Prompts</label>
+          <div class="slider-row">
+            <input type="range" id="f-idle-max" min="1" max="5" step="1" value="${a.messagePlan?.idleMessageMaxSpokenCount||3}" oninput="document.getElementById('f-idle-max-val').textContent=this.value"/>
+            <span class="slider-val" id="f-idle-max-val">${a.messagePlan?.idleMessageMaxSpokenCount||3}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="section" id="sec-tools">
+    <div class="section-header" onclick="toggleSection('sec-tools')">
+      <div class="section-title">🔧 Tools & Webhooks</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="hint" style="margin-bottom:14px;">Update the webhook URLs below to point to your Make.com, n8n, or Zapier scenarios. Toggle tools on/off as needed.</div>
+      <div class="tools-grid" id="tools-grid-${id}">${toolsHtml}</div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div class="section" id="sec-analysis">
+    <div class="section-header" onclick="toggleSection('sec-analysis')">
+      <div class="section-title">📊 Analysis & Scoring</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row single">
+        <div class="field">
+          <label>Call Summary Prompt</label>
+          <textarea id="f-summary">${a.analysisPlan?.summaryPrompt||""}</textarea>
+          <div class="hint">What should the AI extract from every call?</div>
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Success Evaluation Prompt</label>
+          <textarea id="f-success-prompt" style="min-height:80px;">${a.analysisPlan?.successEvaluationPrompt||""}</textarea>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Success Rubric</label>
+          <select id="f-rubric">
+            <option value="PassFail"    ${(a.analysisPlan?.successEvaluationRubric||"PassFail")==="PassFail"?"selected":""}>Pass / Fail</option>
+            <option value="NumericScale" ${a.analysisPlan?.successEvaluationRubric==="NumericScale"?"selected":""}>Numeric Scale (1-10)</option>
+            <option value="DescriptiveScale" ${a.analysisPlan?.successEvaluationRubric==="DescriptiveScale"?"selected":""}>Descriptive Scale</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Transcript</label>
+          <select id="f-transcript">
+            <option value="true"  ${a.artifactPlan?.transcriptPlan?.enabled?"selected":""}>Enabled</option>
+            <option value="false" ${!a.artifactPlan?.transcriptPlan?.enabled?"selected":""}>Disabled</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ── SAVE ASSISTANT ────────────────────────────────────────────────────────────
+async function saveAssistant(id) {
+  const a = assistants[id];
+  const tools = a.model?.tools || [];
+
+  // collect idle messages
+  const idleInputs = document.querySelectorAll(`[id^="idle-msg-${id}-"]`);
+  const idleMsgs = Array.from(idleInputs).map(i => i.value).filter(v => v.trim());
+
+  // collect tool webhook URLs
+  tools.forEach((t, i) => {
+    const inp = document.getElementById(`tool-url-${id}-${i}`);
+    if (inp && t.server) t.server.url = inp.value;
+  });
+
+  const provider = document.getElementById("f-provider").value;
+  const transcVal = (document.getElementById("f-transcriber").value||"deepgram-nova-3").split("-");
+
+  const payload = {
+    name: document.getElementById("f-name").value,
+    model: {
+      provider,
+      model: document.getElementById("f-model").value,
+      temperature: parseFloat(document.getElementById("f-temp").value),
+      maxTokens: parseInt(document.getElementById("f-tokens").value),
+      messages: [{ role: "system", content: document.getElementById("f-prompt").value }],
+      tools
+    },
+    voice: {
+      provider: document.getElementById("f-voice-provider").value,
+      voiceId: document.getElementById("f-voice-id").value,
+      stability: parseFloat(document.getElementById("f-stability").value),
+      similarityBoost: parseFloat(document.getElementById("f-similarity").value),
+      style: parseFloat(document.getElementById("f-style").value),
+      useSpeakerBoost: true
+    },
+    transcriber: {
+      provider: transcVal[0] || "deepgram",
+      model: transcVal.slice(1).join("-") || "nova-3",
+      language: "en-US"
+    },
+    firstMessage: document.getElementById("f-first").value,
+    firstMessageMode: "assistant-speaks-first",
+    endCallMessage: document.getElementById("f-endmsg").value,
+    endCallPhrases: document.getElementById("f-endphrases").value.split(",").map(s=>s.trim()).filter(Boolean),
+    voicemailMessage: document.getElementById("f-voicemail").value,
+    silenceTimeoutSeconds: parseInt(document.getElementById("f-silence").value),
+    maxDurationSeconds: parseInt(document.getElementById("f-maxdur").value),
+    backgroundSound: document.getElementById("f-bg").value,
+    backgroundDenoisingEnabled: document.getElementById("f-denoise").value === "true",
+    responseDelaySeconds: parseFloat(document.getElementById("f-delay").value),
+    analysisPlan: {
+      summaryPrompt: document.getElementById("f-summary").value,
+      successEvaluationPrompt: document.getElementById("f-success-prompt").value,
+      successEvaluationRubric: document.getElementById("f-rubric").value
+    },
+    artifactPlan: {
+      recordingEnabled: document.getElementById("f-recording").value === "true",
+      transcriptPlan: { enabled: document.getElementById("f-transcript").value === "true", assistantName: document.getElementById("f-name").value, userName: "Caller" }
+    },
+    messagePlan: {
+      idleMessages: idleMsgs,
+      idleMessageMaxSpokenCount: parseInt(document.getElementById("f-idle-max").value),
+      idleTimeoutSeconds: parseInt(document.getElementById("f-idle-timeout").value)
+    }
+  };
+
+  toast(`Saving ${a.name}…`, "gold");
+
+  try {
+    const r = await fetch(`${VAPI_BASE}/assistant/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${VAPI_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      assistants[id] = await r.json();
+      toast(`✅ ${a.name} saved successfully`, "green");
+    } else {
+      const err = await r.json();
+      console.error(err);
+      toast(`❌ Save failed: ${err.message?.[0]||"unknown error"}`, "red");
+    }
+  } catch(e) {
+    toast("❌ Network error — check connection", "red");
+  }
+}
+
+async function saveAll() {
+  if (!currentId) return;
+  for (const id of ASSISTANT_IDS) {
+    if (id === currentId) await saveAssistant(id);
+  }
+}
+
+// ── EMAIL STUDIO ──────────────────────────────────────────────────────────────
+function showEmailStudio() {
+  currentId = null;
+  document.querySelectorAll(".agent-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("email-tab").classList.add("active");
+
+  const tmplCards = EMAIL_TEMPLATES.map(t => `
+    <div class="tmpl-card" id="tmpl-${t.id}" onclick="loadTemplate('${t.id}')">
+      <span class="tmpl-icon">${t.icon}</span>
+      <div class="tmpl-name">${t.name}</div>
+    </div>`).join("");
+
+  document.getElementById("main-panel").innerHTML = `
+  <div class="page-header">
+    <div>
+      <div class="page-title">✉️ Email Studio</div>
+      <div class="page-sub">Design professional emails and marketing campaigns</div>
+    </div>
+    <button class="save-btn" onclick="copyEmail()">📋 Copy Email</button>
+  </div>
+
+  <div class="section" id="sec-tmpl">
+    <div class="section-header" onclick="toggleSection('sec-tmpl')">
+      <div class="section-title">📦 Templates</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="template-grid">${tmplCards}</div>
+    </div>
+  </div>
+
+  <div class="section" id="sec-compose">
+    <div class="section-header" onclick="toggleSection('sec-compose')">
+      <div class="section-title">✏️ Compose</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field">
+          <label>To</label>
+          <input type="text" id="email-to" placeholder="recipient@example.com" />
+        </div>
+        <div class="field">
+          <label>Sender Name</label>
+          <input type="text" id="email-sender" placeholder="e.g. Riley · Imperium" />
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Subject Line</label>
+          <input type="text" id="email-subject" placeholder="Write a compelling subject..." />
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Email Body</label>
+          <textarea id="email-body" class="textarea-prompt" style="min-height:320px;" placeholder="Write your email here..."></textarea>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Priority</label>
+          <select id="email-priority">
+            <option value="normal">Normal</option>
+            <option value="high">High Priority</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Reply-To</label>
+          <input type="text" id="email-replyto" placeholder="contact@buildimperium.org" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="sec-preview">
+    <div class="section-header" onclick="toggleSection('sec-preview')">
+      <div class="section-title">👁 Preview</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div id="email-preview" style="background:var(--surface2);border-radius:8px;padding:24px;white-space:pre-wrap;font-family:Georgia,serif;font-size:.9rem;line-height:1.7;color:var(--text);min-height:100px;">
+        Select a template or start writing to preview your email.
+      </div>
+      <button class="add-btn" style="margin-top:12px;" onclick="refreshPreview()">🔄 Refresh Preview</button>
+    </div>
+  </div>
+  `;
+}
+
+function loadTemplate(id) {
+  const t = EMAIL_TEMPLATES.find(x => x.id === id);
+  if (!t) return;
+  document.querySelectorAll(".tmpl-card").forEach(c => c.classList.remove("active"));
+  document.getElementById(`tmpl-${id}`)?.classList.add("active");
+  document.getElementById("email-subject").value = t.subject;
+  document.getElementById("email-body").value = t.body;
+  refreshPreview();
+  toast(`Template loaded: ${t.name}`, "gold");
+}
+
+function refreshPreview() {
+  const subject = document.getElementById("email-subject")?.value || "";
+  const body    = document.getElementById("email-body")?.value || "";
+  const to      = document.getElementById("email-to")?.value || "";
+  const sender  = document.getElementById("email-sender")?.value || "";
+  document.getElementById("email-preview").textContent =
+    `TO: ${to}\nFROM: ${sender}\nSUBJECT: ${subject}\n\n${body}`;
+}
+
+function copyEmail() {
+  const body = document.getElementById("email-body")?.value || "";
+  const subject = document.getElementById("email-subject")?.value || "";
+  const text = `SUBJECT: ${subject}\n\n${body}`;
+  navigator.clipboard.writeText(text).then(() => toast("📋 Email copied to clipboard!", "green"));
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function toggleSection(id) {
+  document.getElementById(id)?.classList.toggle("collapsed");
+}
+
+function onProviderChange(provider) {
+  const sel = document.getElementById("f-model");
+  sel.innerHTML = (MODELS[provider]||[]).map(m => `<option value="${m}">${m}</option>`).join("");
+}
+
+function updateToolUrl(index, val) {
+  const tools = assistants[currentId]?.model?.tools || [];
+  if (tools[index]?.server) tools[index].server.url = val;
+}
+
+function toggleTool(index, btn) {
+  btn.classList.toggle("off");
+}
+
+function addIdle() {
+  const list = document.getElementById("idle-list");
+  const i = list.children.length;
+  const div = document.createElement("div");
+  div.className = "idle-item";
+  div.id = `idle-${i}`;
+  div.innerHTML = `<input type="text" id="idle-msg-${currentId}-${i}" placeholder="Enter idle message…" /><button onclick="removeIdle(${i})">✕</button>`;
+  list.appendChild(div);
+}
+
+function removeIdle(i) {
+  document.getElementById(`idle-${i}`)?.remove();
+}
+
+function toast(msg, type="gold") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.classList.remove("show"), 3500);
+}
+
+init();
+</script>
+</body>
+</html>
