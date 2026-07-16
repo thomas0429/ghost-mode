@@ -177,26 +177,21 @@ def do_search(query):
         except:
             pass
 
-    # Free fallback: DuckDuckGo Instant Answer API
+    # Free fallback: Jina.ai reads DuckDuckGo search results page
     try:
-        r = requests.get(
-            "https://api.duckduckgo.com/",
-            params={"q": query, "format": "json", "no_html": 1, "skip_disambig": 1},
-            timeout=8
-        )
-        data = r.json()
-        abstract = data.get("AbstractText", "")
-        answer = data.get("Answer", "")
-        related = data.get("RelatedTopics", [])
+        search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(query)}"
+        jina_url = f"https://r.jina.ai/{search_url}"
+        r = requests.get(jina_url, timeout=12, headers={"Accept": "text/plain", "X-Return-Format": "text"})
+        text = r.text[:2000].strip()
 
+        # Extract meaningful lines
         lines = []
-        if answer:
-            lines.append(answer)
-        if abstract:
-            lines.append(abstract)
-        for topic in related[:3]:
-            if isinstance(topic, dict) and topic.get("Text"):
-                lines.append(f"• {topic['Text'][:150]}")
+        for line in text.split('\n'):
+            line = line.strip()
+            if len(line) > 40 and not line.startswith('http') and not line.startswith('['):
+                lines.append(f"• {line[:200]}")
+            if len(lines) >= 4:
+                break
 
         if lines:
             return "\n".join(lines)
