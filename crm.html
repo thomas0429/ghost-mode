@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Imperium CRM — Outreach Tracker</title>
+<style>
+:root{
+  --gold:#C9A84C;--gold-light:#F2D27A;--dark:#03050E;--panel:#080B18;
+  --surface:#0D1025;--border:rgba(201,168,76,0.18);--text:#E8E8F4;
+  --muted:rgba(232,232,244,0.5);--green:#22c55e;--red:#ef4444;
+  --blue:#3b82f6;--yellow:#f59e0b;--purple:#a855f7;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;height:100vh;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:220px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+.sidebar-logo .brand{font-size:1.1rem;font-weight:800;color:var(--gold);letter-spacing:0.08em;}
+.sidebar-logo .sub{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+.sidebar-nav{padding:12px 0;flex:1;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:0.875rem;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;}
+.nav-item:hover{color:var(--text);background:rgba(201,168,76,0.05);}
+.nav-item.active{color:var(--gold);background:rgba(201,168,76,0.08);border-left-color:var(--gold);}
+.nav-icon{font-size:1rem;width:20px;text-align:center;}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);}
+.sidebar-footer .version{font-size:0.7rem;color:var(--muted);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOPBAR */
+.topbar{height:56px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;background:var(--panel);}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.page-title{font-size:1rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.btn{padding:7px 16px;border-radius:7px;font-size:0.82rem;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;display:flex;align-items:center;gap:6px;}
+.btn-gold{background:var(--gold);color:#000;}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold);}
+
+/* CONTENT AREA */
+.content{flex:1;overflow-y:auto;padding:24px;}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;}
+.stat-card .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:8px;}
+.stat-card .value{font-size:1.8rem;font-weight:800;line-height:1;}
+.stat-card .delta{font-size:0.75rem;margin-top:6px;}
+.delta.up{color:var(--green);}
+.delta.down{color:var(--red);}
+
+/* PIPELINE */
+.pipeline-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.pipeline-col{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;min-height:300px;}
+.pipeline-col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.pipeline-col-title{font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;}
+.pipeline-count{background:rgba(255,255,255,0.08);border-radius:100px;padding:2px 8px;font-size:0.72rem;color:var(--muted);}
+.pipeline-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;}
+.pipeline-card:hover{border-color:var(--gold);transform:translateY(-1px);}
+.pc-name{font-size:0.85rem;font-weight:600;margin-bottom:4px;}
+.pc-company{font-size:0.75rem;color:var(--muted);margin-bottom:6px;}
+.pc-tags{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{font-size:0.65rem;padding:2px 7px;border-radius:100px;font-weight:600;}
+.tag-re{background:rgba(59,130,246,0.15);color:#93c5fd;}
+.tag-law{background:rgba(168,85,247,0.15);color:#c084fc;}
+.tag-med{background:rgba(34,197,94,0.15);color:#86efac;}
+.tag-fin{background:rgba(201,168,76,0.15);color:var(--gold);}
+.tag-ins{background:rgba(239,68,68,0.15);color:#fca5a5;}
+.tag-gym{background:rgba(245,158,11,0.15);color:#fcd34d;}
+.tag-other{background:rgba(255,255,255,0.08);color:var(--muted);}
+.pc-score{display:flex;align-items:center;gap:4px;margin-top:6px;}
+.score-dot{width:6px;height:6px;border-radius:50%;}
+.score-label{font-size:0.68rem;color:var(--muted);}
+
+/* LEADS TABLE */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.section-title-sm{font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);}
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.table-toolbar{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.search-input{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--text);font-size:0.85rem;outline:none;width:220px;transition:border 0.15s;}
+.search-input:focus{border-color:var(--gold);}
+.filter-select{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--text);font-size:0.82rem;outline:none;cursor:pointer;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:10px 16px;text-align:left;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);}
+tbody tr{border-bottom:1px solid rgba(201,168,76,0.06);transition:background 0.12s;cursor:pointer;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(201,168,76,0.04);}
+tbody td{padding:12px 16px;font-size:0.85rem;vertical-align:middle;}
+.lead-name{font-weight:600;}
+.lead-sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:0.72rem;font-weight:600;}
+.status-new{background:rgba(59,130,246,0.15);color:#93c5fd;}
+.status-contacted{background:rgba(245,158,11,0.15);color:#fcd34d;}
+.status-demo{background:rgba(168,85,247,0.15);color:#c084fc;}
+.status-closed{background:rgba(34,197,94,0.15);color:#86efac;}
+.status-lost{background:rgba(239,68,68,0.12);color:#fca5a5;}
+.action-btns{display:flex;gap:6px;}
+.action-btn{padding:4px 10px;border-radius:5px;font-size:0.72rem;font-weight:600;border:none;cursor:pointer;transition:all 0.12s;}
+.ab-call{background:rgba(34,197,94,0.15);color:#86efac;}
+.ab-call:hover{background:rgba(34,197,94,0.3);}
+.ab-email{background:rgba(59,130,246,0.15);color:#93c5fd;}
+.ab-email:hover{background:rgba(59,130,246,0.3);}
+.ab-note{background:rgba(255,255,255,0.06);color:var(--muted);}
+.ab-note:hover{background:rgba(255,255,255,0.12);}
+.priority-bar{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.08);}
+.pbar-fill{height:100%;border-radius:2px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:560px;max-height:85vh;overflow-y:auto;padding:28px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-title{font-size:1rem;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:4px;}
+.modal-close:hover{color:var(--text);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.fg{margin-bottom:0;}
+.fg label{display:block;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:6px;}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:0.875rem;outline:none;transition:border 0.15s;font-family:inherit;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold);}
+.fg textarea{resize:vertical;min-height:80px;}
+.fg select option{background:var(--panel);}
+.fg.full{grid-column:1/-1;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+
+/* ACTIVITY FEED */
+.activity-feed{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:24px;}
+.activity-item{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.06);}
+.activity-item:last-child{border-bottom:none;}
+.activity-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;}
+.ai-call{background:rgba(34,197,94,0.15);}
+.ai-email{background:rgba(59,130,246,0.15);}
+.ai-book{background:rgba(201,168,76,0.15);}
+.ai-lead{background:rgba(168,85,247,0.15);}
+.activity-body .ab-title{font-size:0.83rem;font-weight:600;margin-bottom:2px;}
+.activity-body .ab-time{font-size:0.72rem;color:var(--muted);}
+
+/* VIEWS */
+.view{display:none;}
+.view.active{display:block;}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:2.5rem;margin-bottom:12px;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.2);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">IMPERIUM</div>
+    <div class="sub">Outreach CRM</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="showView('pipeline')"><span class="nav-icon">🏗️</span> Pipeline</div>
+    <div class="nav-item" onclick="showView('leads')"><span class="nav-icon">👥</span> All Leads</div>
+    <div class="nav-item" onclick="showView('activity')"><span class="nav-icon">⚡</span> Activity</div>
+    <div class="nav-item" onclick="showView('templates')"><span class="nav-icon">✉️</span> Templates</div>
+    <div class="nav-item" onclick="showView('analytics')"><span class="nav-icon">📊</span> Analytics</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="version">Imperium CRM v1.0</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="page-title" id="page-title">Pipeline</div>
+    </div>
+    <div class="topbar-right">
+      <div id="search-box-top"></div>
+      <button class="btn btn-outline" onclick="exportCSV()">⬇ Export</button>
+      <button class="btn btn-gold" onclick="openAddModal()">+ Add Lead</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="label">Total Leads</div>
+        <div class="value" id="stat-total">0</div>
+        <div class="delta up" id="stat-total-d"></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Contacted</div>
+        <div class="value" id="stat-contacted" style="color:var(--yellow)">0</div>
+        <div class="delta"></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Demo Booked</div>
+        <div class="value" id="stat-demo" style="color:var(--purple)">0</div>
+        <div class="delta"></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Closed</div>
+        <div class="value" id="stat-closed" style="color:var(--green)">0</div>
+        <div class="delta up" id="stat-mrr"></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">MRR Pipeline</div>
+        <div class="value" id="stat-mrr-val" style="color:var(--gold)">$0</div>
+        <div class="delta up" id="stat-mrr-d"></div>
+      </div>
+    </div>
+
+    <!-- PIPELINE VIEW -->
+    <div id="view-pipeline" class="view active">
+      <div class="pipeline-row" id="pipeline-cols"></div>
+    </div>
+
+    <!-- LEADS VIEW -->
+    <div id="view-leads" class="view">
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" id="search-input" placeholder="🔍  Search leads..." oninput="renderTable()"/>
+          <select class="filter-select" id="filter-status" onchange="renderTable()">
+            <option value="">All Statuses</option>
+            <option>New</option>
+            <option>Contacted</option>
+            <option>Demo Booked</option>
+            <option>Closed</option>
+            <option>Lost</option>
+          </select>
+          <select class="filter-select" id="filter-industry" onchange="renderTable()">
+            <option value="">All Industries</option>
+            <option>Real Estate</option>
+            <option>Law Firm</option>
+            <option>Medical / Dental</option>
+            <option>Car Dealership</option>
+            <option>Financial Services</option>
+            <option>Insurance</option>
+            <option>Gym / Fitness</option>
+            <option>Contractor / Trades</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Industry</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Value</th>
+              <th>Last Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ACTIVITY VIEW -->
+    <div id="view-activity" class="view">
+      <div class="section-header">
+        <div class="section-title-sm">Recent Activity</div>
+      </div>
+      <div class="activity-feed" id="activity-list"></div>
+    </div>
+
+    <!-- TEMPLATES VIEW -->
+    <div id="view-templates" class="view">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;" id="templates-grid"></div>
+    </div>
+
+    <!-- ANALYTICS VIEW -->
+    <div id="view-analytics" class="view">
+      <div class="stats-row" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card">
+          <div class="label">Contact Rate</div>
+          <div class="value" id="an-contact-rate" style="color:var(--blue)">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Demo Rate</div>
+          <div class="value" id="an-demo-rate" style="color:var(--purple)">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Close Rate</div>
+          <div class="value" id="an-close-rate" style="color:var(--green)">0%</div>
+        </div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:16px;">
+        <div class="section-title-sm" style="margin-bottom:20px;">Leads by Industry</div>
+        <div id="industry-bars"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add New Lead</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <input type="hidden" id="edit-id"/>
+      <div class="fg"><label>First Name *</label><input id="m-first" placeholder="John"/></div>
+      <div class="fg"><label>Last Name</label><input id="m-last" placeholder="Smith"/></div>
+      <div class="fg"><label>Company</label><input id="m-company" placeholder="Smith Realty"/></div>
+      <div class="fg"><label>Industry *</label>
+        <select id="m-industry">
+          <option value="">Select...</option>
+          <option>Real Estate</option><option>Law Firm</option><option>Medical / Dental</option>
+          <option>Car Dealership</option><option>Financial Services</option><option>Insurance</option>
+          <option>Gym / Fitness</option><option>Contractor / Trades</option><option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label>Email</label><input id="m-email" placeholder="john@smith.com" type="email"/></div>
+      <div class="fg"><label>Phone</label><input id="m-phone" placeholder="+1 555 000 0000"/></div>
+      <div class="fg"><label>City / Market</label><input id="m-city" placeholder="Miami, FL"/></div>
+      <div class="fg"><label>Status</label>
+        <select id="m-status">
+          <option>New</option><option>Contacted</option><option>Demo Booked</option>
+          <option>Closed</option><option>Lost</option>
+        </select>
+      </div>
+      <div class="fg"><label>Monthly Value ($)</label><input id="m-value" placeholder="297" type="number"/></div>
+      <div class="fg"><label>Priority (1–10)</label><input id="m-priority" placeholder="7" type="number" min="1" max="10"/></div>
+      <div class="fg full"><label>Source (how you found them)</label><input id="m-source" placeholder="Google Maps, Zillow, Cold DM, Referral..."/></div>
+      <div class="fg full"><label>Notes</label><textarea id="m-notes" placeholder="Key info, objections, next steps..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveLead()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = "imperium_crm_leads";
+const ACTIVITY_KEY = "imperium_crm_activity";
+
+let leads = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || "[]");
+
+// Seed demo data if empty
+if (leads.length === 0) {
+  leads = [
+    {id:uid(),first:"Marcus",last:"Rodriguez",company:"Elite Realty Group",industry:"Real Estate",email:"marcus@eliterealty.com",phone:"+13055550192",city:"Miami, FL",status:"Demo Booked",value:297,priority:9,source:"Zillow",notes:"Asked about after-hours coverage. Very interested.",created:daysAgo(2)},
+    {id:uid(),first:"Diana",last:"Kowalski",company:"Bright Smile Dental",industry:"Medical / Dental",email:"dkowalski@brightsmile.com",phone:"+17085550341",city:"Chicago, IL",status:"Contacted",value:297,priority:8,source:"Google Maps",notes:"Currently using answering service. Paying $800/mo.",created:daysAgo(4)},
+    {id:uid(),first:"James",last:"Thornton",company:"Thornton & Associates",industry:"Law Firm",email:"jt@thorntonlaw.com",phone:"+14045550812",city:"Atlanta, GA",status:"Closed",value:497,priority:10,source:"LinkedIn",notes:"Signed Enterprise plan. Onboarding next week.",created:daysAgo(7)},
+    {id:uid(),first:"Sofia",last:"Alvarez",company:"Alvarez Auto",industry:"Car Dealership",email:"sofia@alvarezauto.com",phone:"+13235550099",city:"Los Angeles, CA",status:"New",value:297,priority:6,source:"Google Maps",notes:"",created:daysAgo(1)},
+    {id:uid(),first:"Brian",last:"Chen",company:"Pinnacle Financial",industry:"Financial Services",email:"bchen@pinnaclefin.com",phone:"+16465550774",city:"New York, NY",status:"New",value:497,priority:7,source:"Cold DM",notes:"Handles HNW clients. Would benefit from Franklin-style closer.",created:daysAgo(0)},
+    {id:uid(),first:"Lauren",last:"Kim",company:"FitLife Studios",industry:"Gym / Fitness",email:"lauren@fitlife.com",phone:"+13125550234",city:"Chicago, IL",status:"Lost",value:99,priority:3,source:"Facebook Group",notes:"Said price was too high. Follow up in 3 months.",created:daysAgo(10)},
+  ];
+  activity = [
+    {icon:"📞",type:"ai-call",title:"Riley called Marcus Rodriguez — Demo booked for Friday",time:"2 hours ago"},
+    {icon:"✉️",type:"ai-email",title:"Follow-up email sent to Diana Kowalski",time:"5 hours ago"},
+    {icon:"🏆",type:"ai-book",title:"James Thornton signed Enterprise plan — $497/mo",time:"1 day ago"},
+    {icon:"👤",type:"ai-lead",title:"New lead added: Brian Chen (Pinnacle Financial)",time:"Today"},
+  ];
+  save();
+}
+
+function uid(){return 'l'+Date.now()+Math.random().toString(36).slice(2,6);}
+function daysAgo(d){const t=new Date();t.setDate(t.getDate()-d);return t.toISOString();}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(leads));localStorage.setItem(ACTIVITY_KEY,JSON.stringify(activity));}
+function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function fmtMRR(leads){return '$'+leads.filter(l=>l.status==="Closed").reduce((s,l)=>s+(+l.value||0),0).toLocaleString();}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats(){
+  document.getElementById("stat-total").textContent=leads.length;
+  document.getElementById("stat-contacted").textContent=leads.filter(l=>l.status==="Contacted").length;
+  document.getElementById("stat-demo").textContent=leads.filter(l=>l.status==="Demo Booked").length;
+  document.getElementById("stat-closed").textContent=leads.filter(l=>l.status==="Closed").length;
+  const mrr=leads.filter(l=>l.status==="Closed").reduce((s,l)=>s+(+l.value||0),0);
+  document.getElementById("stat-mrr-val").textContent='$'+mrr.toLocaleString()+'/mo';
+
+  // analytics
+  const total=leads.length||1;
+  document.getElementById("an-contact-rate").textContent=Math.round(leads.filter(l=>["Contacted","Demo Booked","Closed"].includes(l.status)).length/total*100)+"%";
+  document.getElementById("an-demo-rate").textContent=Math.round(leads.filter(l=>["Demo Booked","Closed"].includes(l.status)).length/total*100)+"%";
+  document.getElementById("an-close-rate").textContent=Math.round(leads.filter(l=>l.status==="Closed").length/total*100)+"%";
+
+  // industry bars
+  const inds={};leads.forEach(l=>{inds[l.industry]=(inds[l.industry]||0)+1;});
+  const max=Math.max(...Object.values(inds),1);
+  document.getElementById("industry-bars").innerHTML=Object.entries(inds).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:5px;"><span>${k}</span><span style="color:var(--muted)">${v} lead${v!==1?'s':''}</span></div>
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:var(--gold);border-radius:3px;transition:width 0.4s;"></div></div>
+    </div>`).join('');
+}
+
+// ── PIPELINE ──────────────────────────────────────────────────────────────────
+const STAGES = [
+  {key:"New",color:"#3b82f6"},
+  {key:"Contacted",color:"#f59e0b"},
+  {key:"Demo Booked",color:"#a855f7"},
+  {key:"Closed",color:"#22c55e"},
+  {key:"Lost",color:"#ef4444"},
+];
+function industryTag(ind){
+  const map={"Real Estate":"tag-re","Law Firm":"tag-law","Medical / Dental":"tag-med","Financial Services":"tag-fin","Insurance":"tag-ins","Gym / Fitness":"tag-gym"};
+  return map[ind]||"tag-other";
+}
+function scoreColor(p){if(p>=8)return"#22c55e";if(p>=5)return"#f59e0b";return"#ef4444";}
+function renderPipeline(){
+  const cols=document.getElementById("pipeline-cols");
+  cols.innerHTML=STAGES.map(s=>{
+    const stageleads=leads.filter(l=>l.status===s.key);
+    return`<div class="pipeline-col">
+      <div class="pipeline-col-header">
+        <div class="pipeline-col-title" style="color:${s.color}">${s.key}</div>
+        <div class="pipeline-count">${stageleads.length}</div>
+      </div>
+      ${stageleads.map(l=>`
+        <div class="pipeline-card" onclick="openEditModal('${l.id}')">
+          <div class="pc-name">${l.first} ${l.last}</div>
+          <div class="pc-company">${l.company||l.industry}</div>
+          <div class="pc-tags"><span class="tag ${industryTag(l.industry)}">${l.industry||'—'}</span>${l.value?`<span class="tag tag-fin">$${l.value}/mo</span>`:''}</div>
+          <div class="pc-score"><div class="score-dot" style="background:${scoreColor(l.priority||5)}"></div><div class="score-label">Priority ${l.priority||'—'}/10</div></div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function statusPill(s){
+  const map={New:"status-new",Contacted:"status-contacted","Demo Booked":"status-demo",Closed:"status-closed",Lost:"status-lost"};
+  const dots={New:"🔵",Contacted:"🟡","Demo Booked":"🟣",Closed:"🟢",Lost:"🔴"};
+  return`<span class="status-pill ${map[s]||''}">${dots[s]||''} ${s}</span>`;
+}
+function renderTable(){
+  const q=(document.getElementById("search-input")?.value||"").toLowerCase();
+  const fs=document.getElementById("filter-status")?.value||"";
+  const fi=document.getElementById("filter-industry")?.value||"";
+  let filtered=leads.filter(l=>{
+    const txt=`${l.first} ${l.last} ${l.company} ${l.email} ${l.city}`.toLowerCase();
+    return(!q||txt.includes(q))&&(!fs||l.status===fs)&&(!fi||l.industry===fi);
+  });
+  const tbody=document.getElementById("leads-tbody");
+  if(!tbody)return;
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No leads found</td></tr>`;return;}
+  tbody.innerHTML=filtered.map(l=>{
+    const pct=((l.priority||5)/10*100);
+    const pc=scoreColor(l.priority||5);
+    return`<tr onclick="openEditModal('${l.id}')">
+      <td><div class="lead-name">${l.first} ${l.last}</div><div class="lead-sub">${l.company||''} ${l.city?'· '+l.city:''}</div></td>
+      <td><span class="tag ${industryTag(l.industry)}">${l.industry||'—'}</span></td>
+      <td>${statusPill(l.status)}</td>
+      <td><div class="priority-bar"><div class="pbar-fill" style="width:${pct}%;background:${pc}"></div></div></td>
+      <td style="color:var(--gold);font-weight:600">${l.value?'$'+l.value+'/mo':'—'}</td>
+      <td style="color:var(--muted)">${fmtDate(l.created)}</td>
+      <td onclick="event.stopPropagation()"><div class="action-btns">
+        <button class="action-btn ab-call" onclick="logCall('${l.id}')">📞 Call</button>
+        <button class="action-btn ab-email" onclick="logEmail('${l.id}')">✉ Email</button>
+        <button class="action-btn ab-note" onclick="openEditModal('${l.id}')">✏ Edit</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── ACTIVITY ──────────────────────────────────────────────────────────────────
+function renderActivity(){
+  const el=document.getElementById("activity-list");
+  if(!activity.length){el.innerHTML=`<div class="empty"><div class="empty-icon">⚡</div><p>No activity yet — start reaching out!</p></div>`;return;}
+  el.innerHTML=activity.slice().reverse().slice(0,50).map(a=>`
+    <div class="activity-item">
+      <div class="activity-icon ${a.type}">${a.icon}</div>
+      <div class="activity-body">
+        <div class="ab-title">${a.title}</div>
+        <div class="ab-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── TEMPLATES ─────────────────────────────────────────────────────────────────
+const TEMPLATES = [
+  {name:"Cold Outreach — Real Estate",icon:"🏠",subject:"AI receptionist for your listings",body:`Hi [Name],\n\nI noticed you have active listings in [City]. I built an AI that answers every call, qualifies buyers, and books showings automatically — 24/7.\n\nMost agents I work with recover 8–12 missed leads per month in the first week.\n\nWorth a 10-minute demo?\n\n— [Your Name]`},
+  {name:"Cold Outreach — Law Firm",icon:"⚖️",subject:"Never miss an intake call again",body:`Hi [Name],\n\nLaw firms lose 30–40% of potential clients to voicemail every week. I built an AI intake agent that answers 24/7, collects case details, and books consultations automatically.\n\nYour attorneys only talk to people who are ready to hire.\n\nCan I show you a quick demo?\n\n— [Your Name]`},
+  {name:"Cold Outreach — Medical",icon:"🦷",subject:"Reduce no-shows by 35%",body:`Hi [Name],\n\nI work with dental and medical practices to automate appointment booking and follow-ups with AI. On average, practices we work with see a 35% drop in no-shows within 30 days.\n\nWould love to show you a live demo — takes 10 minutes.\n\n— [Your Name]`},
+  {name:"Follow-Up After Demo",icon:"🔄",subject:"Following up on your Imperium demo",body:`Hi [Name],\n\nGreat speaking with you! As promised, here's a quick recap:\n\n✅ AI receptionist answers every call 24/7\n✅ Qualifies leads automatically\n✅ Books appointments to your calendar\n✅ Sends follow-up emails instantly\n\nReady to get started? Reply here and we'll have you live in 48 hours.\n\n— [Your Name]`},
+  {name:"Objection — Price Too High",icon:"💬",subject:"Re: Imperium pricing",body:`Hi [Name],\n\nTotally understand the concern on price. Here's the math:\n\nOne missed lead per week × your average deal value = what you're losing monthly.\n\nImperium at $297/mo pays for itself with a single booking.\n\nWant to start on the Starter plan at $99 and scale from there?\n\n— [Your Name]`},
+  {name:"Win-Back — 3 Month Follow Up",icon:"🏆",subject:"Checking back in",body:`Hi [Name],\n\nI reached out a few months ago about Imperium. A lot has changed — we've added CRM integration, email campaigns, and Ghost Mode video calls.\n\nWould love to show you where we are now. Worth another 10 minutes?\n\n— [Your Name]`},
+];
+function renderTemplates(){
+  document.getElementById("templates-grid").innerHTML=TEMPLATES.map(t=>`
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;">
+      <div style="font-size:1.4rem;margin-bottom:10px">${t.icon}</div>
+      <div style="font-weight:700;margin-bottom:6px">${t.name}</div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">Subject: ${t.subject}</div>
+      <pre style="font-size:0.8rem;color:var(--muted);line-height:1.65;white-space:pre-wrap;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;max-height:180px;overflow-y:auto">${t.body}</pre>
+      <button class="btn btn-outline" style="margin-top:14px;width:100%" onclick="copyTemplate('${encodeURIComponent(t.body)}')">📋 Copy Template</button>
+    </div>`).join('');
+}
+function copyTemplate(encoded){
+  navigator.clipboard.writeText(decodeURIComponent(encoded));
+  alert("Template copied to clipboard!");
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openAddModal(){
+  document.getElementById("modal-title").textContent="Add New Lead";
+  document.getElementById("edit-id").value="";
+  ["first","last","company","email","phone","city","notes","source"].forEach(f=>document.getElementById("m-"+f).value="");
+  document.getElementById("m-industry").value="";
+  document.getElementById("m-status").value="New";
+  document.getElementById("m-value").value="";
+  document.getElementById("m-priority").value="";
+  document.getElementById("modal-overlay").classList.add("open");
+}
+function openEditModal(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  document.getElementById("modal-title").textContent="Edit Lead";
+  document.getElementById("edit-id").value=id;
+  document.getElementById("m-first").value=l.first||"";
+  document.getElementById("m-last").value=l.last||"";
+  document.getElementById("m-company").value=l.company||"";
+  document.getElementById("m-industry").value=l.industry||"";
+  document.getElementById("m-email").value=l.email||"";
+  document.getElementById("m-phone").value=l.phone||"";
+  document.getElementById("m-city").value=l.city||"";
+  document.getElementById("m-status").value=l.status||"New";
+  document.getElementById("m-value").value=l.value||"";
+  document.getElementById("m-priority").value=l.priority||"";
+  document.getElementById("m-source").value=l.source||"";
+  document.getElementById("m-notes").value=l.notes||"";
+  document.getElementById("modal-overlay").classList.add("open");
+}
+function closeModal(){document.getElementById("modal-overlay").classList.remove("open");}
+function closeModalOutside(e){if(e.target===document.getElementById("modal-overlay"))closeModal();}
+function saveLead(){
+  const first=document.getElementById("m-first").value.trim();
+  const industry=document.getElementById("m-industry").value;
+  if(!first||!industry){alert("First name and industry are required.");return;}
+  const id=document.getElementById("edit-id").value;
+  const data={
+    first,last:document.getElementById("m-last").value.trim(),
+    company:document.getElementById("m-company").value.trim(),
+    industry,email:document.getElementById("m-email").value.trim(),
+    phone:document.getElementById("m-phone").value.trim(),
+    city:document.getElementById("m-city").value.trim(),
+    status:document.getElementById("m-status").value,
+    value:+document.getElementById("m-value").value||0,
+    priority:+document.getElementById("m-priority").value||5,
+    source:document.getElementById("m-source").value.trim(),
+    notes:document.getElementById("m-notes").value.trim(),
+  };
+  if(id){
+    const idx=leads.findIndex(l=>l.id===id);
+    leads[idx]={...leads[idx],...data};
+    logActivityItem("✏️","ai-note",`Updated lead: ${data.first} ${data.last}`);
+  } else {
+    data.id=uid();data.created=new Date().toISOString();
+    leads.push(data);
+    logActivityItem("👤","ai-lead",`New lead added: ${data.first} ${data.last} (${data.industry})`);
+  }
+  save();render();closeModal();
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function logCall(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  const outcome=prompt(`Log call with ${l.first} ${l.last}\nOutcome (e.g. "Left voicemail", "Booked demo", "Not interested"):`);
+  if(!outcome)return;
+  if(outcome.toLowerCase().includes("demo")||outcome.toLowerCase().includes("book")){
+    leads.find(x=>x.id===id).status="Demo Booked";
+  } else if(outcome.toLowerCase().includes("not interested")||outcome.toLowerCase().includes("no")){
+    if(confirm("Mark as Lost?"))leads.find(x=>x.id===id).status="Lost";
+  } else {
+    leads.find(x=>x.id===id).status="Contacted";
+  }
+  logActivityItem("📞","ai-call",`Called ${l.first} ${l.last} — ${outcome}`);
+  save();render();
+}
+function logEmail(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  const subject=prompt(`Email subject for ${l.first} ${l.last}:`);
+  if(!subject)return;
+  leads.find(x=>x.id===id).status="Contacted";
+  logActivityItem("✉️","ai-email",`Email sent to ${l.first} ${l.last}: "${subject}"`);
+  save();render();
+}
+function logActivityItem(icon,type,title){
+  activity.push({icon,type,title,time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})+" today"});
+  save();
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function exportCSV(){
+  const cols=["First","Last","Company","Industry","Email","Phone","City","Status","Value","Priority","Source","Notes"];
+  const rows=leads.map(l=>[l.first,l.last,l.company,l.industry,l.email,l.phone,l.city,l.status,l.value,l.priority,l.source,l.notes].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(","));
+  const csv=[cols.join(","),...rows].join("\n");
+  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="imperium_leads.csv";a.click();
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+const viewTitles={pipeline:"Pipeline",leads:"All Leads",activity:"Activity Log",templates:"Outreach Templates",analytics:"Analytics"};
+function showView(v){
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(el=>el.classList.remove("active"));
+  document.getElementById("view-"+v).classList.add("active");
+  document.querySelectorAll(".nav-item")[["pipeline","leads","activity","templates","analytics"].indexOf(v)].classList.add("active");
+  document.getElementById("page-title").textContent=viewTitles[v];
+  render();
+}
+function render(){
+  updateStats();renderPipeline();renderTable();renderActivity();renderTemplates();
+}
+render();
+</script>
+</body>
+</html>
