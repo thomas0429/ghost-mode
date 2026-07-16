@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ghost Mode — Imperium</title>
   <script src="https://trulience.com/sdk/trulience.sdk.js"></script>
+  <!-- Face-api for AI vision sensors -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <style>
     :root {
       --gold: #C9A84C;
@@ -21,476 +23,298 @@
       --green: #22c55e;
       --red: #ef4444;
       --blue: #60a5fa;
+      --purple: #a78bfa;
     }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html,body { height:100%; overflow:hidden; }
-    body {
-      background: var(--dark);
-      color: var(--text);
-      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{height:100%;overflow:hidden;}
+    body{background:var(--dark);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;}
 
     /* ── TOPBAR ── */
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      height: 56px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      z-index: 20;
-    }
-    .logo {
-      font-size: 16px;
-      font-weight: 900;
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      background: linear-gradient(90deg,var(--gold),var(--gold-light));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .topbar-center { display:flex; align-items:center; gap:20px; }
-    .badge {
-      font-size: 9px; font-weight:800; letter-spacing:2.5px;
-      padding: 4px 12px; border-radius:20px;
-      border: 1px solid var(--gold); color: var(--gold);
-      text-transform:uppercase;
-    }
-    .intel-bar {
-      display: flex; align-items: center; gap: 18px;
-      font-size: 11px; color: var(--muted);
-    }
-    .intel-item { display:flex; align-items:center; gap:6px; }
-    .intel-dot {
-      width:7px; height:7px; border-radius:50%; background:#444;
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-    .intel-dot.live { background:var(--green); box-shadow:0 0 8px var(--green); }
-    .intel-dot.warn { background:var(--gold); box-shadow:0 0 8px var(--gold); animation:pulse 1.2s infinite; }
-    .intel-dot.dead { background:var(--red); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;z-index:20;}
+    .logo{font-size:15px;font-weight:900;letter-spacing:4px;text-transform:uppercase;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .badge{font-size:9px;font-weight:800;letter-spacing:2.5px;padding:3px 10px;border-radius:20px;border:1px solid var(--gold);color:var(--gold);text-transform:uppercase;}
+    .intel-bar{display:flex;align-items:center;gap:16px;font-size:10px;color:var(--muted);}
+    .intel-item{display:flex;align-items:center;gap:5px;}
+    .intel-dot{width:7px;height:7px;border-radius:50%;background:#333;transition:background .3s,box-shadow .3s;}
+    .intel-dot.live{background:var(--green);box-shadow:0 0 8px var(--green);}
+    .intel-dot.warn{background:var(--gold);box-shadow:0 0 8px var(--gold);animation:pulse 1.2s infinite;}
+    .intel-dot.dead{background:var(--red);}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
     /* ── LAYOUT ── */
-    .workspace { display:flex; flex:1; overflow:hidden; }
+    .workspace{display:flex;flex:1;overflow:hidden;}
 
-    /* ── SIDEBAR ── */
-    .sidebar {
-      width: 270px;
-      background: var(--panel);
-      border-right: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      overflow-y: auto; flex-shrink:0;
-    }
-    .sidebar-section {
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-    }
-    .sidebar-label {
-      font-size: 9px; font-weight:800; letter-spacing:2.5px;
-      text-transform:uppercase; color:var(--gold); margin-bottom:12px;
-      display:flex; align-items:center; justify-content:space-between;
-    }
-    .sidebar-label span { font-size:8px; color:var(--muted); font-weight:500; letter-spacing:1px; }
+    /* ── LEFT SIDEBAR ── */
+    .sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+    .sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border);}
+    .sidebar-label{font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+    .sidebar-label span{font-size:8px;color:var(--muted);font-weight:500;letter-spacing:1px;}
 
     /* AVATAR CARD */
-    .avatar-card {
-      display:flex; align-items:center; gap:10px;
-      padding:10px 12px; border-radius:10px;
-      border:1px solid transparent; cursor:pointer; transition:all .2s;
-    }
-    .avatar-card:hover { border-color:var(--border); background:var(--surface); }
-    .avatar-card.active { border-color:var(--gold); background:var(--gold-dim); }
-    .avatar-thumb {
-      width:42px; height:42px; border-radius:50%;
-      background:var(--surface); border:2px solid var(--border);
-      display:flex; align-items:center; justify-content:center;
-      font-size:18px; overflow:hidden; flex-shrink:0; position:relative;
-    }
-    .avatar-thumb img { width:100%; height:100%; object-fit:cover; }
-    .avatar-thumb .voice-ring {
-      position:absolute; inset:-3px; border-radius:50%;
-      border:2px solid var(--green); opacity:0;
-      transition:opacity .3s;
-    }
-    .avatar-thumb.speaking .voice-ring { opacity:1; animation:voicering 0.6s ease-in-out infinite alternate; }
-    @keyframes voicering { from{box-shadow:0 0 4px var(--green);} to{box-shadow:0 0 14px var(--green);} }
-    .avatar-info { flex:1; min-width:0; }
-    .avatar-name { font-size:13px; font-weight:700; }
-    .avatar-role { font-size:10px; color:var(--muted); margin-top:1px; }
-    .avatar-sel {
-      width:15px; height:15px; border-radius:50%;
-      border:2px solid var(--border);
-      display:flex; align-items:center; justify-content:center;
-      font-size:7px; transition:all .2s; flex-shrink:0;
-    }
-    .avatar-card.active .avatar-sel { background:var(--gold); border-color:var(--gold); color:var(--dark); }
+    .avatar-card{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;border:1px solid transparent;cursor:pointer;transition:all .2s;}
+    .avatar-card:hover{border-color:var(--border);background:var(--surface);}
+    .avatar-card.active{border-color:var(--gold);background:var(--gold-dim);}
+    .avatar-thumb{width:40px;height:40px;border-radius:50%;background:var(--surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;flex-shrink:0;position:relative;}
+    .avatar-thumb .voice-ring{position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--green);opacity:0;transition:opacity .3s;}
+    .avatar-thumb.speaking .voice-ring{opacity:1;animation:voicering .6s ease-in-out infinite alternate;}
+    @keyframes voicering{from{box-shadow:0 0 4px var(--green);}to{box-shadow:0 0 14px var(--green);}}
+    .avatar-info{flex:1;min-width:0;}
+    .avatar-name{font-size:12px;font-weight:700;}
+    .avatar-role{font-size:10px;color:var(--muted);margin-top:1px;}
 
-    /* BRIEFING */
-    .briefing-box {
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:10px; padding:10px 12px; position:relative;
-    }
-    .briefing-box textarea {
-      width:100%; background:transparent; border:none; outline:none;
-      color:var(--text); font-size:12px; line-height:1.7; resize:none;
-      min-height:80px; font-family:inherit;
-    }
-    .briefing-box textarea::placeholder { color:var(--muted); }
-    .briefing-ai-btn {
-      position:absolute; bottom:8px; right:8px;
-      background:var(--gold-dim); border:1px solid var(--border-bright);
-      color:var(--gold); border-radius:6px; padding:3px 8px;
-      font-size:9px; font-weight:700; letter-spacing:1px;
-      cursor:pointer; transition:all .2s; text-transform:uppercase;
-    }
-    .briefing-ai-btn:hover { background:rgba(201,168,76,.22); }
+    /* MODE TABS */
+    .mode-tabs{display:flex;gap:5px;}
+    .mode-tab{flex:1;padding:6px 3px;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all .2s;}
+    .mode-tab.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);}
 
     /* INPUTS */
-    .ghost-input {
-      width:100%;
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:8px; padding:9px 12px;
-      color:var(--text); font-size:12px; outline:none;
-      font-family:monospace; transition:border .2s;
-    }
-    .ghost-input:focus { border-color:var(--gold); }
-    .ghost-input::placeholder { color:var(--muted); font-family:inherit; }
+    .ghost-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 11px;color:var(--text);font-size:11px;outline:none;transition:border .2s;font-family:inherit;}
+    .ghost-input:focus{border-color:var(--gold);}
+    .ghost-input::placeholder{color:var(--muted);}
 
-    /* MODE SELECTOR */
-    .mode-tabs { display:flex; gap:6px; }
-    .mode-tab {
-      flex:1; padding:7px 4px; border-radius:7px; font-size:10px;
-      font-weight:700; letter-spacing:1px; text-transform:uppercase;
-      cursor:pointer; text-align:center; border:1px solid var(--border);
-      color:var(--muted); background:transparent; transition:all .2s;
-    }
-    .mode-tab.active { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+    /* BRIEFING */
+    .briefing-box{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;position:relative;}
+    .briefing-box textarea{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:11px;line-height:1.7;resize:none;min-height:72px;font-family:inherit;}
+    .briefing-box textarea::placeholder{color:var(--muted);}
+    .briefing-ai-btn{position:absolute;bottom:7px;right:7px;background:var(--gold-dim);border:1px solid var(--border-bright);color:var(--gold);border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+    .briefing-ai-btn:hover{background:rgba(201,168,76,.22);}
 
     /* TIMER */
-    .timer-display { text-align:center; padding:8px 0 4px; }
-    .timer-value {
-      font-size:32px; font-weight:200; letter-spacing:5px;
-      background:linear-gradient(90deg,var(--gold),var(--gold-light));
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-      font-variant-numeric:tabular-nums;
-    }
-    .timer-label { font-size:9px; color:var(--muted); letter-spacing:2px; margin-top:2px; }
+    .timer-display{text-align:center;padding:6px 0 2px;}
+    .timer-value{font-size:30px;font-weight:200;letter-spacing:5px;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums;}
+    .timer-label{font-size:9px;color:var(--muted);letter-spacing:2px;margin-top:1px;}
 
     /* LEAD FEED */
-    .lead-feed { display:flex; flex-direction:column; gap:6px; }
-    .lead-card {
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:8px; padding:10px 12px; font-size:11px;
-    }
-    .lead-card .lead-name { font-weight:700; font-size:12px; margin-bottom:4px; }
-    .lead-card .lead-detail { color:var(--muted); font-size:10px; line-height:1.5; }
-    .lead-card .lead-tag {
-      display:inline-block; margin-top:4px;
-      padding:1px 6px; border-radius:4px; font-size:9px; font-weight:700;
-      background:rgba(34,197,94,.12); color:var(--green); border:1px solid rgba(34,197,94,.25);
-    }
-    .lead-empty { text-align:center; color:var(--muted); font-size:11px; padding:10px 0; }
+    .lead-feed{display:flex;flex-direction:column;gap:5px;}
+    .lead-card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:11px;}
+    .lead-card .lead-name{font-weight:700;font-size:12px;margin-bottom:3px;}
+    .lead-card .lead-detail{color:var(--muted);font-size:10px;line-height:1.5;}
+    .lead-card .lead-tag{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25);}
+    .lead-empty{text-align:center;color:var(--muted);font-size:10px;padding:8px 0;}
 
     /* ── STAGE ── */
-    .stage {
-      flex:1; position:relative; overflow:hidden;
-      background: radial-gradient(ellipse at 50% 40%, #0c0f28 0%, #03050E 75%);
-    }
-    #trulience-container {
-      position:absolute; inset:0; width:100%; height:100%;
-    }
-    #trulience-container iframe { width:100%; height:100%; border:none; }
+    .stage{flex:1;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#0c0f28 0%,#03050E 75%);}
+    #trulience-container{position:absolute;inset:0;width:100%;height:100%;}
+    #trulience-container iframe{width:100%;height:100%;border:none;}
 
-    /* IDLE */
-    .idle-overlay {
-      position:absolute; inset:0; z-index:5;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:22px; background:radial-gradient(ellipse at 50% 40%,#0c0f28 0%,#03050E 75%);
-      transition:opacity .7s;
-    }
-    .idle-overlay.hidden { opacity:0; pointer-events:none; }
-    .orb {
-      width:150px; height:150px; border-radius:50%;
-      border:1.5px solid rgba(201,168,76,.25);
-      display:flex; align-items:center; justify-content:center;
-      position:relative;
-    }
-    .orb::before,.orb::after {
-      content:''; position:absolute; border-radius:50%;
-      border:1px solid rgba(201,168,76,.1);
-    }
-    .orb::before { inset:-14px; animation:ripple 3.5s ease-out infinite; }
-    .orb::after  { inset:-30px; animation:ripple 3.5s ease-out infinite 1.2s; }
-    @keyframes ripple { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.25);opacity:0} }
-    .orb-icon { font-size:58px; }
-    .idle-title {
-      font-size:26px; font-weight:800; letter-spacing:2px;
-      background:linear-gradient(90deg,var(--gold),var(--gold-light));
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    }
-    .idle-sub {
-      font-size:13px; color:var(--muted); text-align:center;
-      max-width:320px; line-height:1.7;
-    }
-    .idle-stats {
-      display:flex; gap:28px; margin-top:6px;
-    }
-    .idle-stat { text-align:center; }
-    .idle-stat-value {
-      font-size:22px; font-weight:700;
-      background:linear-gradient(90deg,var(--gold),var(--gold-light));
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    }
-    .idle-stat-label { font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-top:2px; }
+    /* ── WEBCAM PANEL (right side) ── */
+    .sensor-panel{width:280px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+    .sensor-section{padding:14px 16px;border-bottom:1px solid var(--border);}
+    .sensor-label{font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+    .sensor-label span{font-size:8px;color:var(--muted);font-weight:500;}
+
+    /* WEBCAM FEED */
+    .webcam-wrapper{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000;aspect-ratio:4/3;}
+    #webcam{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);}
+    #face-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1);}
+    .webcam-off{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#000;color:var(--muted);font-size:11px;}
+    .webcam-off-icon{font-size:28px;}
+    .cam-toggle{margin-top:8px;width:100%;padding:8px;border-radius:7px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all .2s;text-align:center;}
+    .cam-toggle:hover{border-color:var(--purple);color:var(--purple);}
+    .cam-toggle.active{border-color:var(--green);color:var(--green);background:rgba(34,197,94,.08);}
+
+    /* AI SENSOR METERS */
+    .sensor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .sensor-meter{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 11px;}
+    .sensor-meter-label{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;}
+    .sensor-meter-val{font-size:20px;font-weight:800;line-height:1;}
+    .sensor-meter-sub{font-size:9px;color:var(--muted);margin-top:3px;}
+    .sensor-bar-wrap{margin-top:5px;background:var(--surface2);border-radius:4px;height:4px;overflow:hidden;}
+    .sensor-bar{height:100%;border-radius:4px;transition:width .5s ease,background .5s;}
+
+    /* PRESENCE SCORE */
+    .presence-ring{display:flex;align-items:center;justify-content:center;padding:10px 0;}
+    .presence-circle{position:relative;width:90px;height:90px;}
+    .presence-circle svg{transform:rotate(-90deg);}
+    .presence-circle-bg{fill:none;stroke:var(--surface2);stroke-width:7;}
+    .presence-circle-fill{fill:none;stroke:var(--gold);stroke-width:7;stroke-linecap:round;stroke-dasharray:226;stroke-dashoffset:226;transition:stroke-dashoffset .8s ease,stroke .5s;}
+    .presence-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .presence-val{font-size:22px;font-weight:800;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .presence-tag{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+
+    /* EMOTION FEED */
+    .emotion-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+    .emotion-icon{font-size:16px;width:22px;text-align:center;}
+    .emotion-name{font-size:10px;color:var(--muted);width:60px;}
+    .emotion-bar-wrap{flex:1;background:var(--surface2);border-radius:3px;height:5px;overflow:hidden;}
+    .emotion-bar{height:100%;border-radius:3px;transition:width .4s ease;}
+    .emotion-pct{font-size:9px;color:var(--muted);width:28px;text-align:right;}
+
+    /* ALERT CHIPS */
+    .alert-chips{display:flex;flex-wrap:wrap;gap:5px;min-height:28px;}
+    .alert-chip{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:var(--red);font-size:9px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:20px;animation:chipIn .3s ease;}
+    .alert-chip.gold{background:var(--gold-dim);border-color:var(--border-bright);color:var(--gold);}
+    .alert-chip.purple{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple);}
+    @keyframes chipIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+
+    /* COACHING FEED */
+    .coaching-feed{display:flex;flex-direction:column;gap:5px;}
+    .coaching-item{background:var(--surface);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:7px 10px;font-size:10px;color:var(--text);line-height:1.5;animation:chipIn .3s ease;}
+    .coaching-item.red{border-left-color:var(--red);}
+    .coaching-item.purple{border-left-color:var(--purple);}
+    .coaching-empty{font-size:10px;color:var(--muted);text-align:center;padding:6px 0;}
+
+    /* IDLE OVERLAY */
+    .idle-overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:radial-gradient(ellipse at 50% 40%,#0c0f28 0%,#03050E 75%);transition:opacity .7s;}
+    .idle-overlay.hidden{opacity:0;pointer-events:none;}
+    .orb{width:140px;height:140px;border-radius:50%;border:1.5px solid rgba(201,168,76,.25);display:flex;align-items:center;justify-content:center;position:relative;}
+    .orb::before,.orb::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(201,168,76,.1);}
+    .orb::before{inset:-14px;animation:ripple 3.5s ease-out infinite;}
+    .orb::after{inset:-30px;animation:ripple 3.5s ease-out infinite 1.2s;}
+    @keyframes ripple{0%{transform:scale(1);opacity:1}100%{transform:scale(1.25);opacity:0}}
+    .orb-icon{font-size:52px;}
+    .idle-title{font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .idle-sub{font-size:12px;color:var(--muted);text-align:center;max-width:300px;line-height:1.7;}
+    .idle-stats{display:flex;gap:24px;margin-top:4px;}
+    .idle-stat{text-align:center;}
+    .idle-stat-value{font-size:20px;font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .idle-stat-label{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
 
     /* LIVE HUD */
-    .live-hud {
-      position:absolute; top:16px; left:16px; right:16px;
-      display:flex; align-items:flex-start; justify-content:space-between;
-      z-index:8; pointer-events:none; opacity:0; transition:opacity .5s;
-    }
-    .live-hud.show { opacity:1; }
-    .hud-badge {
-      background:rgba(4,6,15,.82); border:1px solid rgba(239,68,68,.6);
-      color:var(--red); font-size:9px; font-weight:900; letter-spacing:3px;
-      padding:5px 12px; border-radius:6px; backdrop-filter:blur(8px);
-      display:flex; align-items:center; gap:6px;
-    }
-    .hud-badge-dot {
-      width:6px; height:6px; border-radius:50%; background:var(--red);
-      animation:pulse 1s infinite;
-    }
-    .hud-sentiment {
-      background:rgba(4,6,15,.82); border:1px solid var(--border);
-      border-radius:8px; padding:8px 14px; backdrop-filter:blur(8px);
-      text-align:center; min-width:100px;
-    }
-    .hud-sentiment-label { font-size:8px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
-    .hud-sentiment-value { font-size:16px; margin-top:2px; }
-    .hud-sentiment-text { font-size:9px; color:var(--muted); margin-top:1px; }
+    .live-hud{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:flex-start;justify-content:space-between;z-index:8;pointer-events:none;opacity:0;transition:opacity .5s;}
+    .live-hud.show{opacity:1;}
+    .hud-badge{background:rgba(4,6,15,.82);border:1px solid rgba(239,68,68,.6);color:var(--red);font-size:9px;font-weight:900;letter-spacing:3px;padding:5px 12px;border-radius:6px;backdrop-filter:blur(8px);display:flex;align-items:center;gap:6px;}
+    .hud-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
+    .hud-sentiment{background:rgba(4,6,15,.82);border:1px solid var(--border);border-radius:8px;padding:7px 13px;backdrop-filter:blur(8px);text-align:center;min-width:90px;}
+    .hud-sentiment-label{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+    .hud-sentiment-value{font-size:16px;margin-top:2px;}
+    .hud-sentiment-text{font-size:9px;color:var(--muted);margin-top:1px;}
+
+    /* FLOATING ALERT */
+    .alert-bar{position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none;}
+    .alert-pill{background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.5);color:var(--red);font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 14px;border-radius:20px;white-space:nowrap;animation:slidein .3s ease,fadeout .3s ease 2.7s forwards;}
+    .alert-pill.gold{background:var(--gold-dim);border-color:var(--border-bright);color:var(--gold);}
+    .alert-pill.purple{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.35);color:var(--purple);}
+    @keyframes slidein{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeout{from{opacity:1}to{opacity:0}}
+
+    /* WAVEFORM */
+    .waveform{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;height:34px;z-index:7;opacity:0;transition:opacity .4s;}
+    .waveform.show{opacity:1;}
+    .waveform-bar{width:3px;border-radius:2px;background:linear-gradient(180deg,var(--gold-light),var(--gold));animation:wave .8s ease-in-out infinite;min-height:4px;}
+    @keyframes wave{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
 
     /* TRANSCRIPT */
-    .transcript-panel {
-      position:absolute; bottom:0; right:0;
-      width:330px; max-height:240px;
-      background:rgba(3,5,14,.9); border-top:1px solid var(--border);
-      border-left:1px solid var(--border); border-radius:12px 0 0 0;
-      padding:12px 14px; overflow-y:auto;
-      font-size:11px; line-height:1.65; display:none; z-index:9;
-      backdrop-filter:blur(14px);
-    }
-    .transcript-panel.show { display:block; }
-    .t-line { margin-bottom:7px; }
-    .t-who { font-weight:800; margin-right:6px; }
-    .t-who.ai  { color:var(--gold); }
-    .t-who.usr { color:var(--blue); }
-    .t-ts { color:var(--muted); font-size:9px; margin-left:4px; }
-
-    /* KEYWORD ALERTS */
-    .alert-bar {
-      position:absolute; top:56px; left:50%; transform:translateX(-50%);
-      z-index:10; display:flex; flex-direction:column; align-items:center; gap:6px;
-      pointer-events:none;
-    }
-    .alert-pill {
-      background:rgba(239,68,68,.18); border:1px solid rgba(239,68,68,.5);
-      color:var(--red); font-size:10px; font-weight:700; letter-spacing:1px;
-      padding:5px 16px; border-radius:20px; white-space:nowrap;
-      animation:slidein .3s ease, fadeout .3s ease 2.7s forwards;
-    }
-    .alert-pill.gold { background:var(--gold-dim); border-color:var(--border-bright); color:var(--gold); }
-    @keyframes slidein { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes fadeout { from{opacity:1} to{opacity:0} }
-
-    /* WAVEFORM VISUALIZER */
-    .waveform {
-      position:absolute; bottom:70px; left:50%; transform:translateX(-50%);
-      display:flex; align-items:center; gap:3px; height:36px; z-index:7;
-      opacity:0; transition:opacity .4s;
-    }
-    .waveform.show { opacity:1; }
-    .waveform-bar {
-      width:3px; border-radius:2px;
-      background:linear-gradient(180deg,var(--gold-light),var(--gold));
-      animation:wave 0.8s ease-in-out infinite;
-      min-height:4px;
-    }
-    @keyframes wave { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
+    .transcript-panel{position:absolute;bottom:0;right:0;width:310px;max-height:220px;background:rgba(3,5,14,.92);border-top:1px solid var(--border);border-left:1px solid var(--border);border-radius:12px 0 0 0;padding:11px 13px;overflow-y:auto;font-size:11px;line-height:1.65;display:none;z-index:9;backdrop-filter:blur(14px);}
+    .transcript-panel.show{display:block;}
+    .t-line{margin-bottom:6px;}
+    .t-who{font-weight:800;margin-right:5px;}
+    .t-who.ai{color:var(--gold);}
+    .t-who.usr{color:var(--blue);}
+    .t-ts{color:var(--muted);font-size:9px;margin-left:4px;}
 
     /* CONTROLS */
-    .controls {
-      display:flex; align-items:center; justify-content:center; gap:10px;
-      padding:14px 28px; background:var(--panel);
-      border-top:1px solid var(--border); flex-shrink:0;
-    }
-    .btn {
-      display:flex; align-items:center; gap:7px;
-      padding:11px 22px; border-radius:50px;
-      font-size:11px; font-weight:800; letter-spacing:1.5px;
-      text-transform:uppercase; cursor:pointer; border:none;
-      transition:all .2s; white-space:nowrap;
-    }
-    .btn:disabled { opacity:.3; cursor:not-allowed; }
-    .btn-primary {
-      background:linear-gradient(135deg,#C9A84C,#F2D27A); color:#03050E;
-      box-shadow:0 4px 20px rgba(201,168,76,.2);
-    }
-    .btn-primary:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 30px rgba(201,168,76,.4); }
-    .btn-danger { background:rgba(239,68,68,.14); border:1px solid rgba(239,68,68,.4); color:var(--red); }
-    .btn-danger:hover:not(:disabled) { background:rgba(239,68,68,.25); }
-    .btn-ghost { background:var(--surface); border:1px solid var(--border); color:var(--text); }
-    .btn-ghost:hover:not(:disabled) { border-color:var(--gold); color:var(--gold); }
-    .btn-ghost.active { border-color:var(--red); color:var(--red); }
-    .btn-icon { font-size:15px; }
+    .controls{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;}
+    .btn{display:flex;align-items:center;gap:6px;padding:10px 20px;border-radius:50px;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;}
+    .btn:disabled{opacity:.3;cursor:not-allowed;}
+    .btn-primary{background:linear-gradient(135deg,#C9A84C,#F2D27A);color:#03050E;box-shadow:0 4px 20px rgba(201,168,76,.2);}
+    .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(201,168,76,.4);}
+    .btn-danger{background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);color:var(--red);}
+    .btn-danger:hover:not(:disabled){background:rgba(239,68,68,.25);}
+    .btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text);}
+    .btn-ghost:hover:not(:disabled){border-color:var(--gold);color:var(--gold);}
+    .btn-ghost.active{border-color:var(--red);color:var(--red);}
+    .btn-icon{font-size:14px;}
 
     /* TOAST */
-    .toast {
-      position:fixed; top:68px; left:50%;
-      transform:translateX(-50%);
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:10px; padding:10px 22px;
-      font-size:12px; z-index:200; opacity:0;
-      transition:opacity .3s; pointer-events:none; white-space:nowrap;
-    }
-    .toast.show { opacity:1; }
-    .toast.gold  { border-color:var(--gold); color:var(--gold); }
-    .toast.red   { border-color:var(--red);  color:var(--red);  }
-    .toast.green { border-color:var(--green);color:var(--green); }
+    .toast{position:fixed;top:62px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 20px;font-size:11px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+    .toast.show{opacity:1;}
+    .toast.gold{border-color:var(--gold);color:var(--gold);}
+    .toast.red{border-color:var(--red);color:var(--red);}
+    .toast.green{border-color:var(--green);color:var(--green);}
+    .toast.purple{border-color:var(--purple);color:var(--purple);}
 
-    /* MODAL */
-    .modal-bg {
-      position:fixed; inset:0; background:rgba(0,0,0,.75);
-      z-index:500; display:flex; align-items:center; justify-content:center;
-      opacity:0; pointer-events:none; transition:opacity .3s;
-    }
-    .modal-bg.show { opacity:1; pointer-events:all; }
-    .modal {
-      background:var(--panel); border:1px solid var(--border-bright);
-      border-radius:16px; padding:28px 32px; max-width:520px; width:90%;
-      box-shadow:0 24px 80px rgba(0,0,0,.8);
-    }
-    .modal h2 {
-      font-size:18px; font-weight:800; letter-spacing:1px; margin-bottom:6px;
-      background:linear-gradient(90deg,var(--gold),var(--gold-light));
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    }
-    .modal p { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:20px; }
-    .modal-actions { display:flex; gap:10px; justify-content:flex-end; }
-    .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
-    .summary-cell { background:var(--surface); border-radius:8px; padding:12px 14px; }
-    .summary-cell-label { font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; }
-    .summary-cell-value { font-size:14px; font-weight:700; }
+    /* MODALS */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+    .modal-bg.show{opacity:1;pointer-events:all;}
+    .modal{background:var(--panel);border:1px solid var(--border-bright);border-radius:16px;padding:26px 30px;max-width:500px;width:92%;box-shadow:0 24px 80px rgba(0,0,0,.8);}
+    .modal h2{font-size:17px;font-weight:800;letter-spacing:1px;margin-bottom:5px;background:linear-gradient(90deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .modal p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:18px;}
+    .modal-actions{display:flex;gap:9px;justify-content:flex-end;}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:18px;}
+    .summary-cell{background:var(--surface);border-radius:8px;padding:11px 13px;}
+    .summary-cell-label{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;}
+    .summary-cell-value{font-size:14px;font-weight:700;}
 
     /* SCROLLBAR */
-    ::-webkit-scrollbar { width:4px; }
-    ::-webkit-scrollbar-track { background:transparent; }
-    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    ::-webkit-scrollbar{width:3px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+    /* BG SELECTOR */
+    .bg-options{display:flex;gap:6px;flex-wrap:wrap;}
+    .bg-opt{width:52px;height:36px;border-radius:6px;border:2px solid transparent;cursor:pointer;object-fit:cover;transition:border .2s;font-size:18px;display:flex;align-items:center;justify-content:center;}
+    .bg-opt.active{border-color:var(--gold);}
+    .bg-opt-inner{width:100%;height:100%;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;}
   </style>
 </head>
 <body>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
-
-<!-- ALERT BAR -->
 <div class="alert-bar" id="alert-bar"></div>
 
-<!-- TOPBAR -->
+<!-- ══ TOPBAR ══ -->
 <div class="topbar">
   <div class="logo">Imperium</div>
-  <div class="topbar-center">
+  <div style="display:flex;align-items:center;gap:14px;">
     <div class="badge">Ghost Mode</div>
+    <div class="badge" style="border-color:var(--purple);color:var(--purple);">AI Vision</div>
   </div>
   <div class="intel-bar">
-    <div class="intel-item">
-      <div class="intel-dot" id="dot-avatar"></div>
-      <span id="txt-avatar">Avatar</span>
-    </div>
-    <div class="intel-item">
-      <div class="intel-dot" id="dot-vapi"></div>
-      <span id="txt-vapi">Voice AI</span>
-    </div>
-    <div class="intel-item">
-      <div class="intel-dot" id="dot-stream"></div>
-      <span id="txt-stream">Lip Sync</span>
-    </div>
+    <div class="intel-item"><div class="intel-dot" id="dot-avatar"></div><span id="txt-avatar">Avatar</span></div>
+    <div class="intel-item"><div class="intel-dot" id="dot-vapi"></div><span id="txt-vapi">Voice AI</span></div>
+    <div class="intel-item"><div class="intel-dot" id="dot-stream"></div><span id="txt-stream">Lip Sync</span></div>
+    <div class="intel-item"><div class="intel-dot" id="dot-cam"></div><span id="txt-cam">Vision</span></div>
   </div>
 </div>
 
-<!-- WORKSPACE -->
+<!-- ══ WORKSPACE ══ -->
 <div class="workspace">
 
-  <!-- SIDEBAR -->
+  <!-- ── LEFT SIDEBAR ── -->
   <div class="sidebar">
 
-    <!-- AVATAR -->
     <div class="sidebar-section">
-      <div class="sidebar-label">Your AI Twin</div>
+      <div class="sidebar-label">AI Twin</div>
       <div class="avatar-card active" data-avatar="8512990957179848858" id="card-amanda">
-        <div class="avatar-thumb" id="thumb-amanda">
-          🎭
-          <div class="voice-ring"></div>
-        </div>
-        <div class="avatar-info">
-          <div class="avatar-name">Amanda</div>
-          <div class="avatar-role">Executive Avatar</div>
-        </div>
-        <div class="avatar-sel">✓</div>
-      </div>
-      <div class="avatar-card" style="margin-top:7px;opacity:.45;pointer-events:none;" data-avatar="">
-        <div class="avatar-thumb">➕</div>
-        <div class="avatar-info">
-          <div class="avatar-name">Clone Your Face</div>
-          <div class="avatar-role">Upload to Trulience</div>
-        </div>
-        <div class="avatar-sel"></div>
+        <div class="avatar-thumb" id="thumb-amanda">🎭<div class="voice-ring"></div></div>
+        <div class="avatar-info"><div class="avatar-name">Amanda</div><div class="avatar-role">Executive Avatar</div></div>
       </div>
     </div>
 
-    <!-- MODE -->
     <div class="sidebar-section">
-      <div class="sidebar-label">Ghost Mode <span>Behavior</span></div>
+      <div class="sidebar-label">Mode <span>Behavior</span></div>
       <div class="mode-tabs">
         <div class="mode-tab active" data-mode="full">Full Ghost</div>
         <div class="mode-tab" data-mode="assist">Co-Pilot</div>
         <div class="mode-tab" data-mode="listen">Stealth</div>
       </div>
-      <div style="margin-top:10px; font-size:10px; color:var(--muted); line-height:1.6;" id="mode-desc">
-        AI speaks, avatar lip-syncs, you're invisible. Full autonomous session.
-      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6;" id="mode-desc">AI speaks, avatar lip-syncs, you're invisible. Full autonomous session.</div>
     </div>
 
-    <!-- BRIEFING -->
     <div class="sidebar-section">
-      <div class="sidebar-label">Mission Briefing <span>AI reads this</span></div>
+      <div class="sidebar-label">Mission Brief <span>AI reads this</span></div>
       <div class="briefing-box">
-        <textarea id="briefing" placeholder="Tell your Ghost what to do...&#10;e.g. 'Negotiate the SaaS deal. Budget is $50k max. Don't agree to exclusivity. Get a 30-day trial.'"></textarea>
+        <textarea id="briefing" placeholder="Tell your Ghost what to do...&#10;e.g. 'Negotiate the SaaS deal. Budget $50k max. No exclusivity. Push for trial.'"></textarea>
         <div class="briefing-ai-btn" onclick="enhanceBriefing()">✦ Enhance</div>
       </div>
     </div>
 
-    <!-- KEYWORDS -->
     <div class="sidebar-section">
-      <div class="sidebar-label">Alert Keywords <span>Auto-detect</span></div>
-      <input class="ghost-input" id="keywords" placeholder="contract, price, cancel, sign, payment..." style="font-family:inherit;"/>
-      <div style="margin-top:6px; font-size:9px; color:var(--muted);">Flashes HUD alert when detected in conversation</div>
+      <div class="sidebar-label">Alert Keywords</div>
+      <input class="ghost-input" id="keywords" placeholder="contract, price, cancel, sign..." />
+      <div style="margin-top:5px;font-size:9px;color:var(--muted);">HUD alert fires when detected mid-call</div>
     </div>
 
-    <!-- VAPI CONFIG -->
     <div class="sidebar-section">
       <div class="sidebar-label">Vapi Key</div>
       <input class="ghost-input" id="vapi-key" type="password" value="1bc8edc7-3e80-425b-95a0-8a58145288fc"/>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Assistant (Franklin)</div>
-      <input class="ghost-input" id="assistant-id" type="text" value="1752f04a-fba7-47d8-8210-78c8c291f26d"/>
+      <div class="sidebar-label">Assistant</div>
+      <input class="ghost-input" id="assistant-id" value="1752f04a-fba7-47d8-8210-78c8c291f26d"/>
     </div>
 
-    <!-- TIMER -->
     <div class="sidebar-section">
       <div class="sidebar-label">Session Time</div>
       <div class="timer-display">
@@ -499,51 +323,30 @@
       </div>
     </div>
 
-    <!-- LEAD FEED -->
     <div class="sidebar-section" style="flex:1;">
-      <div class="sidebar-label">Lead Intel <span id="lead-count">0 captured</span></div>
-      <div class="lead-feed" id="lead-feed">
-        <div class="lead-empty">Leads captured during sessions appear here</div>
-      </div>
+      <div class="sidebar-label">Leads <span id="lead-count">0 captured</span></div>
+      <div class="lead-feed" id="lead-feed"><div class="lead-empty">Leads appear here</div></div>
     </div>
 
   </div>
 
-  <!-- STAGE -->
+  <!-- ── STAGE ── -->
   <div class="stage">
-
-    <!-- IDLE -->
     <div class="idle-overlay" id="idle-overlay">
-      <div class="orb">
-        <div class="orb-icon">👤</div>
-      </div>
+      <div class="orb"><div class="orb-icon">👤</div></div>
       <div class="idle-title">Ghost Mode Ready</div>
-      <div class="idle-sub">Your AI twin attends meetings, negotiates deals, and handles calls — while you do anything else.</div>
+      <div class="idle-sub">Your AI twin attends calls, closes deals, and reads the room — while you do anything else.</div>
       <div class="idle-stats">
-        <div class="idle-stat">
-          <div class="idle-stat-value" id="stat-sessions">0</div>
-          <div class="idle-stat-label">Sessions</div>
-        </div>
-        <div class="idle-stat">
-          <div class="idle-stat-value" id="stat-leads">0</div>
-          <div class="idle-stat-label">Leads</div>
-        </div>
-        <div class="idle-stat">
-          <div class="idle-stat-value" id="stat-time">0m</div>
-          <div class="idle-stat-label">Time Saved</div>
-        </div>
+        <div class="idle-stat"><div class="idle-stat-value" id="stat-sessions">0</div><div class="idle-stat-label">Sessions</div></div>
+        <div class="idle-stat"><div class="idle-stat-value" id="stat-leads">0</div><div class="idle-stat-label">Leads</div></div>
+        <div class="idle-stat"><div class="idle-stat-value" id="stat-time">0m</div><div class="idle-stat-label">Saved</div></div>
       </div>
     </div>
 
-    <!-- AVATAR -->
     <div id="trulience-container"></div>
 
-    <!-- LIVE HUD -->
     <div class="live-hud" id="live-hud">
-      <div class="hud-badge">
-        <div class="hud-badge-dot"></div>
-        GHOST LIVE
-      </div>
+      <div class="hud-badge"><div class="hud-badge-dot"></div>GHOST LIVE</div>
       <div class="hud-sentiment" id="hud-sentiment">
         <div class="hud-sentiment-label">Sentiment</div>
         <div class="hud-sentiment-value" id="sentiment-emoji">😐</div>
@@ -551,68 +354,140 @@
       </div>
     </div>
 
-    <!-- WAVEFORM -->
     <div class="waveform" id="waveform">
-      <div class="waveform-bar" style="height:8px;animation-delay:0s"></div>
-      <div class="waveform-bar" style="height:16px;animation-delay:.1s"></div>
-      <div class="waveform-bar" style="height:24px;animation-delay:.2s"></div>
-      <div class="waveform-bar" style="height:32px;animation-delay:.3s"></div>
-      <div class="waveform-bar" style="height:36px;animation-delay:.4s"></div>
-      <div class="waveform-bar" style="height:28px;animation-delay:.5s"></div>
-      <div class="waveform-bar" style="height:20px;animation-delay:.6s"></div>
-      <div class="waveform-bar" style="height:12px;animation-delay:.7s"></div>
+      <div class="waveform-bar" style="height:6px;animation-delay:0s"></div>
+      <div class="waveform-bar" style="height:14px;animation-delay:.1s"></div>
+      <div class="waveform-bar" style="height:22px;animation-delay:.2s"></div>
+      <div class="waveform-bar" style="height:30px;animation-delay:.3s"></div>
+      <div class="waveform-bar" style="height:34px;animation-delay:.4s"></div>
+      <div class="waveform-bar" style="height:26px;animation-delay:.5s"></div>
+      <div class="waveform-bar" style="height:18px;animation-delay:.6s"></div>
+      <div class="waveform-bar" style="height:10px;animation-delay:.7s"></div>
     </div>
 
-    <!-- TRANSCRIPT -->
     <div class="transcript-panel" id="transcript"></div>
+  </div>
+
+  <!-- ── RIGHT: AI SENSOR PANEL ── -->
+  <div class="sensor-panel">
+
+    <!-- WEBCAM -->
+    <div class="sensor-section">
+      <div class="sensor-label">Live Vision <span id="cam-status-txt">Off</span></div>
+      <div class="webcam-wrapper">
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="face-canvas"></canvas>
+        <div class="webcam-off" id="webcam-off">
+          <div class="webcam-off-icon">📷</div>
+          <div>Camera off</div>
+        </div>
+      </div>
+      <div class="cam-toggle" id="cam-btn" onclick="toggleCamera()">⚡ Enable AI Vision</div>
+    </div>
+
+    <!-- PRESENCE SCORE -->
+    <div class="sensor-section">
+      <div class="sensor-label">Presence Score <span>Real-time</span></div>
+      <div class="presence-ring">
+        <div class="presence-circle">
+          <svg viewBox="0 0 80 80" width="90" height="90">
+            <circle class="presence-circle-bg" cx="40" cy="40" r="36"/>
+            <circle class="presence-circle-fill" id="presence-arc" cx="40" cy="40" r="36"/>
+          </svg>
+          <div class="presence-label">
+            <div class="presence-val" id="presence-val">--</div>
+            <div class="presence-tag" id="presence-tag">Standby</div>
+          </div>
+        </div>
+      </div>
+      <!-- Sub meters -->
+      <div class="sensor-grid">
+        <div class="sensor-meter">
+          <div class="sensor-meter-label">Eye Contact</div>
+          <div class="sensor-meter-val" id="eye-val">--%</div>
+          <div class="sensor-bar-wrap"><div class="sensor-bar" id="eye-bar" style="width:0%;background:var(--green);"></div></div>
+        </div>
+        <div class="sensor-meter">
+          <div class="sensor-meter-label">Attention</div>
+          <div class="sensor-meter-val" id="att-val">--%</div>
+          <div class="sensor-bar-wrap"><div class="sensor-bar" id="att-bar" style="width:0%;background:var(--blue);"></div></div>
+        </div>
+        <div class="sensor-meter">
+          <div class="sensor-meter-label">Confidence</div>
+          <div class="sensor-meter-val" id="conf-val">--%</div>
+          <div class="sensor-bar-wrap"><div class="sensor-bar" id="conf-bar" style="width:0%;background:var(--gold);"></div></div>
+        </div>
+        <div class="sensor-meter">
+          <div class="sensor-meter-label">Engagement</div>
+          <div class="sensor-meter-val" id="eng-val">--%</div>
+          <div class="sensor-bar-wrap"><div class="sensor-bar" id="eng-bar" style="width:0%;background:var(--purple);"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMOTION ENGINE -->
+    <div class="sensor-section">
+      <div class="sensor-label">Emotion Engine <span>Face AI</span></div>
+      <div id="emotion-rows">
+        <div class="emotion-row"><div class="emotion-icon">😊</div><div class="emotion-name">Happy</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-happy" style="width:0%;background:#22c55e;"></div></div><div class="emotion-pct" id="epct-happy">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">😐</div><div class="emotion-name">Neutral</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-neutral" style="width:0%;background:#60a5fa;"></div></div><div class="emotion-pct" id="epct-neutral">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">😮</div><div class="emotion-name">Surprised</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-surprised" style="width:0%;background:#f59e0b;"></div></div><div class="emotion-pct" id="epct-surprised">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">😕</div><div class="emotion-name">Sad</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-sad" style="width:0%;background:#6b7280;"></div></div><div class="emotion-pct" id="epct-sad">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">😠</div><div class="emotion-name">Angry</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-angry" style="width:0%;background:#ef4444;"></div></div><div class="emotion-pct" id="epct-angry">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">😨</div><div class="emotion-name">Fearful</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-fearful" style="width:0%;background:#a78bfa;"></div></div><div class="emotion-pct" id="epct-fearful">0%</div></div>
+        <div class="emotion-row"><div class="emotion-icon">🤢</div><div class="emotion-name">Disgusted</div><div class="emotion-bar-wrap"><div class="emotion-bar" id="emo-disgusted" style="width:0%;background:#84cc16;"></div></div><div class="emotion-pct" id="epct-disgusted">0%</div></div>
+      </div>
+    </div>
+
+    <!-- LIVE ALERTS -->
+    <div class="sensor-section">
+      <div class="sensor-label">Vision Alerts <span>Auto-fire</span></div>
+      <div class="alert-chips" id="vision-alerts"><span style="font-size:9px;color:var(--muted);">Alerts appear here</span></div>
+    </div>
+
+    <!-- AI COACHING -->
+    <div class="sensor-section" style="flex:1;">
+      <div class="sensor-label">AI Coaching <span>Live tips</span></div>
+      <div class="coaching-feed" id="coaching-feed">
+        <div class="coaching-empty">Start camera for real-time coaching</div>
+      </div>
+    </div>
 
   </div>
 </div>
 
-<!-- CONTROLS -->
+<!-- ══ CONTROLS ══ -->
 <div class="controls">
-  <button class="btn btn-primary" id="btn-activate" onclick="activate()">
-    <span class="btn-icon">🚀</span> Activate Ghost
-  </button>
-  <button class="btn btn-ghost" id="btn-mic" onclick="toggleMic()" disabled>
-    <span class="btn-icon">🎤</span> Mic
-  </button>
-  <button class="btn btn-ghost" id="btn-transcript" onclick="toggleTranscript()" disabled>
-    <span class="btn-icon">📋</span> Transcript
-  </button>
-  <button class="btn btn-ghost" id="btn-inject" onclick="openInject()" disabled>
-    <span class="btn-icon">💬</span> Whisper
-  </button>
-  <button class="btn btn-danger" id="btn-end" onclick="endCall()" disabled>
-    <span class="btn-icon">⏹</span> End Session
-  </button>
+  <button class="btn btn-primary" id="btn-activate" onclick="activate()"><span class="btn-icon">🚀</span> Activate Ghost</button>
+  <button class="btn btn-ghost" id="btn-mic" onclick="toggleMic()" disabled><span class="btn-icon">🎤</span> Mic</button>
+  <button class="btn btn-ghost" id="btn-transcript" onclick="toggleTranscript()" disabled><span class="btn-icon">📋</span> Transcript</button>
+  <button class="btn btn-ghost" id="btn-inject" onclick="openInject()" disabled><span class="btn-icon">💬</span> Whisper</button>
+  <button class="btn btn-ghost" id="btn-export" onclick="exportSession()"><span class="btn-icon">📤</span> Export</button>
+  <button class="btn btn-danger" id="btn-end" onclick="endCall()" disabled><span class="btn-icon">⏹</span> End</button>
 </div>
 
 <!-- WHISPER MODAL -->
 <div class="modal-bg" id="inject-modal">
   <div class="modal">
-    <h2>Whisper to Ghost</h2>
-    <p>Send a live instruction — your Ghost will naturally weave this into the conversation without revealing you're behind it.</p>
-    <textarea class="ghost-input" id="inject-text" style="min-height:80px;resize:none;margin-bottom:14px;font-family:inherit;"
-      placeholder="e.g. 'Bring up the 30-day trial offer. They seem interested in pricing.'"></textarea>
+    <h2>⚡ Whisper to Ghost</h2>
+    <p>Send a live instruction mid-call — Ghost weaves it in naturally without revealing you're behind it.</p>
+    <textarea class="ghost-input" id="inject-text" style="min-height:75px;resize:none;margin-bottom:13px;" placeholder="e.g. 'Bring up the 30-day trial. They seem ready to close.'"></textarea>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeInject()">Cancel</button>
-      <button class="btn btn-primary" onclick="sendWhisper()">
-        <span>⚡</span> Send
-      </button>
+      <button class="btn btn-primary" onclick="sendWhisper()"><span>⚡</span> Send</button>
     </div>
   </div>
 </div>
 
-<!-- SESSION SUMMARY MODAL -->
+<!-- SUMMARY MODAL -->
 <div class="modal-bg" id="summary-modal">
   <div class="modal">
     <h2>Session Summary</h2>
-    <p>Your Ghost handled the session. Here's what happened:</p>
+    <p>Your Ghost handled it. Here's the debrief:</p>
     <div class="summary-grid" id="summary-grid"></div>
-    <div style="background:var(--surface);border-radius:8px;padding:14px;margin-bottom:18px;">
-      <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Session Transcript</div>
-      <div id="summary-transcript" style="font-size:11px;line-height:1.7;max-height:140px;overflow-y:auto;color:var(--muted);"></div>
+    <div style="background:var(--surface);border-radius:8px;padding:13px;margin-bottom:16px;">
+      <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px;">Transcript Snippet</div>
+      <div id="summary-transcript" style="font-size:11px;line-height:1.7;max-height:130px;overflow-y:auto;color:var(--muted);"></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeSummary()">Close</button>
@@ -622,41 +497,52 @@
 </div>
 
 <script>
-// ════════════════════════════════════════
-// CONFIG
-// ════════════════════════════════════════
-const TRULIENCE_API_KEY  = 'tru_live_zTGK30Un_QT08BnN9C8OrOov3PSfN55jdsdqtDDwp';
-const TRULIENCE_SDK_URL  = 'https://trulience.com/sdk/trulience.sdk.js';
-const DEFAULT_AVATAR_ID  = '8512990957179848858';
+// ════════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════════
+const TRULIENCE_API_KEY = 'tru_live_zTGK30Un_QT08BnN9C8OrOov3PSfN55jdsdqtDDwp';
+const TRULIENCE_SDK_URL = 'https://trulience.com/sdk/trulience.sdk.js';
+const DEFAULT_AVATAR_ID = '8512990957179848858';
+const FACEAPI_MODELS    = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
 
-// ════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════
-let trulienceObj    = null;
-let vapiInstance    = null;
-let isConnected     = false;
-let isMicMuted      = false;
-let timerInterval   = null;
-let secondsElapsed  = 0;
-let transcriptVisible = false;
-let selectedAvatarId  = DEFAULT_AVATAR_ID;
-let currentMode       = 'full';
-let sessionCount      = parseInt(localStorage.getItem('gm_sessions') || '0');
-let leadCount         = parseInt(localStorage.getItem('gm_leads') || '0');
-let totalMinutes      = parseInt(localStorage.getItem('gm_minutes') || '0');
-let allLeads          = JSON.parse(localStorage.getItem('gm_lead_list') || '[]');
-let sessionTranscript = [];
-let lastWhisper       = null;
-let sentimentScores   = [];
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let trulienceObj        = null;
+let vapiInstance        = null;
+let isConnected         = false;
+let isMicMuted          = false;
+let timerInterval       = null;
+let secondsElapsed      = 0;
+let transcriptVisible   = false;
+let selectedAvatarId    = DEFAULT_AVATAR_ID;
+let currentMode         = 'full';
+let sessionCount        = parseInt(localStorage.getItem('gm_sessions') || '0');
+let leadCount           = parseInt(localStorage.getItem('gm_leads') || '0');
+let totalMinutes        = parseInt(localStorage.getItem('gm_minutes') || '0');
+let allLeads            = JSON.parse(localStorage.getItem('gm_lead_list') || '[]');
+let sessionTranscript   = [];
+let sentimentScores     = [];
 
-// ════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════
+// Vision state
+let cameraOn            = false;
+let cameraStream        = null;
+let faceDetectInterval  = null;
+let faceModelsLoaded    = false;
+let lastEmotions        = {};
+let presenceHistory     = [];
+let coachingHistory     = [];
+let lastAlertTime       = {};
+let eyeContactHistory   = [];
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
 function init() {
   updateIdleStats();
   renderLeadFeed();
   setupModeTabs();
-  setupAvatarCards();
+  preloadFaceModels();
 }
 
 function updateIdleStats() {
@@ -667,27 +553,24 @@ function updateIdleStats() {
 
 function renderLeadFeed() {
   const feed = document.getElementById('lead-feed');
-  if (allLeads.length === 0) {
-    feed.innerHTML = '<div class="lead-empty">Leads captured during sessions appear here</div>';
-    return;
-  }
-  feed.innerHTML = allLeads.slice(-5).reverse().map(l => `
-    <div class="lead-card">
-      <div class="lead-name">${l.name || 'Unknown'}</div>
-      <div class="lead-detail">${l.email || ''} ${l.phone ? '· ' + l.phone : ''}</div>
-      <div class="lead-detail">💰 ${l.amount || 'N/A'} · ${l.date}</div>
+  if (!allLeads.length) { feed.innerHTML = '<div class="lead-empty">Leads appear here</div>'; return; }
+  feed.innerHTML = allLeads.slice(-5).reverse().map(l =>
+    `<div class="lead-card">
+      <div class="lead-name">${l.name||'Unknown'}</div>
+      <div class="lead-detail">${l.email||''} ${l.phone?'· '+l.phone:''}</div>
+      <div class="lead-detail">💰 ${l.amount||'N/A'} · ${l.date}</div>
       <span class="lead-tag">✓ Captured</span>
     </div>`).join('');
   document.getElementById('lead-count').textContent = allLeads.length + ' captured';
 }
 
-// ════════════════════════════════════════
-// MODE TABS
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  MODE TABS
+// ════════════════════════════════════════════════════════════
 const modeDescs = {
-  full:   'AI speaks, avatar lip-syncs, you\'re invisible. Fully autonomous session.',
-  assist: 'AI listens and feeds you real-time suggestions. You speak. Co-pilot mode.',
-  listen: 'Ghost joins silently. Audio intel + live transcript only. Zero footprint.'
+  full:   'AI speaks, avatar lip-syncs, you\'re invisible. Fully autonomous.',
+  assist: 'AI listens and feeds you real-time suggestions. You speak.',
+  listen: 'Ghost joins silently. Audio intel + live transcript only.'
 };
 function setupModeTabs() {
   document.querySelectorAll('.mode-tab').forEach(tab => {
@@ -701,28 +584,16 @@ function setupModeTabs() {
   });
 }
 
-// ════════════════════════════════════════
-// AVATAR SELECTION
-// ════════════════════════════════════════
-function setupAvatarCards() {
-  document.querySelectorAll('.avatar-card[data-avatar]').forEach(card => {
-    card.addEventListener('click', () => {
-      if (isConnected || !card.dataset.avatar) return;
-      document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
-      selectedAvatarId = card.dataset.avatar;
-    });
-  });
-}
-
-// ════════════════════════════════════════
-// UTILS
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════════
+let toastTimer;
 function toast(msg, type = 'gold') {
+  clearTimeout(toastTimer);
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = `toast show ${type}`;
-  setTimeout(() => el.classList.remove('show'), 3500);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
 function setDot(id, state, text, textId) {
@@ -745,20 +616,21 @@ function stopTimer() {
   document.getElementById('timer').textContent = '00:00';
 }
 
-function now() {
-  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-}
+function now() { return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
 
+// ════════════════════════════════════════════════════════════
+//  TRANSCRIPT
+// ════════════════════════════════════════════════════════════
 function addTranscriptLine(role, text) {
   const ts = now();
   sessionTranscript.push({ role, text, ts });
-  checkKeywords(text, role);
+  checkKeywords(text);
   analyzeSentiment(text);
   if (!transcriptVisible) return;
   const panel = document.getElementById('transcript');
   const line  = document.createElement('div');
   line.className = 't-line';
-  line.innerHTML = `<span class="t-who ${role === 'assistant' ? 'ai' : 'usr'}">${role === 'assistant' ? '🤖 Ghost:' : '👤 Them:'}</span>${text}<span class="t-ts">${ts}</span>`;
+  line.innerHTML = `<span class="t-who ${role==='assistant'?'ai':'usr'}">${role==='assistant'?'🤖 Ghost:':'👤 Them:'}</span>${text}<span class="t-ts">${ts}</span>`;
   panel.appendChild(line);
   panel.scrollTop = panel.scrollHeight;
 }
@@ -766,29 +638,27 @@ function addTranscriptLine(role, text) {
 function rebuildTranscript() {
   const panel = document.getElementById('transcript');
   panel.innerHTML = '';
-  sessionTranscript.forEach(({role, text, ts}) => {
+  sessionTranscript.forEach(({role,text,ts}) => {
     const line = document.createElement('div');
     line.className = 't-line';
-    line.innerHTML = `<span class="t-who ${role === 'assistant' ? 'ai' : 'usr'}">${role === 'assistant' ? '🤖 Ghost:' : '👤 Them:'}</span>${text}<span class="t-ts">${ts}</span>`;
+    line.innerHTML = `<span class="t-who ${role==='assistant'?'ai':'usr'}">${role==='assistant'?'🤖 Ghost:':'👤 Them:'}</span>${text}<span class="t-ts">${ts}</span>`;
     panel.appendChild(line);
   });
   panel.scrollTop = panel.scrollHeight;
 }
 
-// ════════════════════════════════════════
-// KEYWORD ALERTS
-// ════════════════════════════════════════
-function checkKeywords(text, role) {
+// ════════════════════════════════════════════════════════════
+//  KEYWORD ALERTS
+// ════════════════════════════════════════════════════════════
+function checkKeywords(text) {
   const raw = document.getElementById('keywords').value;
   if (!raw.trim()) return;
   const kws = raw.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
   const low = text.toLowerCase();
-  kws.forEach(kw => {
-    if (low.includes(kw)) showAlert(`⚠ Keyword: "${kw}"`, 'red');
-  });
+  kws.forEach(kw => { if (low.includes(kw)) showStageAlert(`⚠ Keyword: "${kw}"`, 'red'); });
 }
 
-function showAlert(msg, type = 'gold') {
+function showStageAlert(msg, type = 'gold') {
   const bar  = document.getElementById('alert-bar');
   const pill = document.createElement('div');
   pill.className = `alert-pill ${type}`;
@@ -797,44 +667,366 @@ function showAlert(msg, type = 'gold') {
   setTimeout(() => pill.remove(), 3200);
 }
 
-// ════════════════════════════════════════
-// SENTIMENT ANALYSIS (lightweight)
-// ════════════════════════════════════════
-const positiveWords = ['yes','great','interested','perfect','love','definitely','deal','agree','sure','sounds good','absolutely','go ahead'];
-const negativeWords = ['no','not','cancel','expensive','wait','later','maybe','think about','bye','too much','not sure'];
+// ════════════════════════════════════════════════════════════
+//  SENTIMENT (voice)
+// ════════════════════════════════════════════════════════════
+const posWords = ['yes','great','interested','perfect','love','definitely','deal','agree','sure','sounds good','absolutely','go ahead','ready','let\'s do it'];
+const negWords = ['no','not','cancel','expensive','wait','later','maybe','think about','bye','too much','not sure','hold on','pass'];
 function analyzeSentiment(text) {
   const low = text.toLowerCase();
   let score = 0;
-  positiveWords.forEach(w => { if(low.includes(w)) score += 1; });
-  negativeWords.forEach(w => { if(low.includes(w)) score -= 1; });
+  posWords.forEach(w => { if(low.includes(w)) score += 1; });
+  negWords.forEach(w => { if(low.includes(w)) score -= 1; });
   sentimentScores.push(score);
   const avg = sentimentScores.slice(-5).reduce((a,b) => a+b, 0);
   let emoji = '😐', label = 'Neutral';
-  if (avg > 1)       { emoji = '😊'; label = 'Positive'; }
-  else if (avg > 2)  { emoji = '🔥'; label = 'Hot Lead!'; showAlert('🔥 Hot lead detected!', 'gold'); }
-  else if (avg < -1) { emoji = '😕'; label = 'Hesitant'; }
-  else if (avg < -2) { emoji = '⚠️'; label = 'At Risk'; }
+  if (avg >= 3)       { emoji = '🔥'; label = 'Hot Lead!'; showStageAlert('🔥 Hot lead detected!', 'gold'); }
+  else if (avg >= 1)  { emoji = '😊'; label = 'Positive'; }
+  else if (avg <= -2) { emoji = '⚠️'; label = 'At Risk'; }
+  else if (avg <= -1) { emoji = '😕'; label = 'Hesitant'; }
   document.getElementById('sentiment-emoji').textContent = emoji;
   document.getElementById('sentiment-text').textContent  = label;
 }
 
-// ════════════════════════════════════════
-// GET TRULIENCE TOKEN
-// ════════════════════════════════════════
-async function getToken(avatarId) {
-  const res = await fetch('https://trulience.com/auth/generate-token', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'x-api-key': TRULIENCE_API_KEY },
-    body: JSON.stringify({ avatar_id: avatarId, expire_at: 3600 })
-  });
-  if (!res.ok) throw new Error('Token generation failed');
-  const data = await res.json();
-  return data.jwt;
+// ════════════════════════════════════════════════════════════
+//  FACE-API VISION SYSTEM
+// ════════════════════════════════════════════════════════════
+async function preloadFaceModels() {
+  // Wait for face-api to load via defer
+  let attempts = 0;
+  const tryLoad = async () => {
+    if (typeof faceapi === 'undefined') {
+      if (attempts++ < 20) setTimeout(tryLoad, 500);
+      return;
+    }
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.faceExpressionNet.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACEAPI_MODELS),
+      ]);
+      faceModelsLoaded = true;
+      toast('🧠 AI Vision models loaded', 'purple');
+    } catch(e) {
+      // Models failed to load from CDN — vision will use simulated mode
+      faceModelsLoaded = false;
+    }
+  };
+  setTimeout(tryLoad, 1500);
 }
 
-// ════════════════════════════════════════
-// LOAD VAPI SDK
-// ════════════════════════════════════════
+async function toggleCamera() {
+  if (cameraOn) { stopCamera(); return; }
+  await startCamera();
+}
+
+async function startCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width:320, height:240, facingMode:'user' }, audio:false });
+    const video = document.getElementById('webcam');
+    video.srcObject = cameraStream;
+    await video.play();
+    document.getElementById('webcam-off').style.display = 'none';
+    cameraOn = true;
+    const btn = document.getElementById('cam-btn');
+    btn.textContent = '🔴 Disable Vision';
+    btn.classList.add('active');
+    setDot('dot-cam','live','Vision Live','txt-cam');
+    document.getElementById('cam-status-txt').textContent = 'Live';
+    toast('📷 AI Vision active', 'purple');
+    startFaceDetection();
+  } catch(e) {
+    toast('Camera access denied', 'red');
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  clearInterval(faceDetectInterval);
+  cameraOn = false;
+  document.getElementById('webcam-off').style.display = 'flex';
+  document.getElementById('cam-btn').textContent = '⚡ Enable AI Vision';
+  document.getElementById('cam-btn').classList.remove('active');
+  setDot('dot-cam','','Standby','txt-cam');
+  document.getElementById('cam-status-txt').textContent = 'Off';
+  resetSensorUI();
+}
+
+function resetSensorUI() {
+  ['eye','att','conf','eng'].forEach(k => {
+    document.getElementById(`${k}-val`).textContent = '--%';
+    document.getElementById(`${k}-bar`).style.width = '0%';
+  });
+  document.getElementById('presence-val').textContent = '--';
+  document.getElementById('presence-tag').textContent = 'Standby';
+  document.getElementById('presence-arc').style.strokeDashoffset = '226';
+}
+
+function startFaceDetection() {
+  const video  = document.getElementById('webcam');
+  const canvas = document.getElementById('face-canvas');
+  
+  // Match canvas to video display size
+  const resizeCanvas = () => {
+    canvas.width  = video.videoWidth  || 320;
+    canvas.height = video.videoHeight || 240;
+  };
+  video.addEventListener('loadeddata', resizeCanvas, { once: true });
+  resizeCanvas();
+
+  faceDetectInterval = setInterval(async () => {
+    if (!cameraOn || video.readyState < 2) return;
+    
+    if (faceModelsLoaded && typeof faceapi !== 'undefined') {
+      await runRealFaceDetection(video, canvas);
+    } else {
+      runSimulatedSensors();
+    }
+  }, 300);
+}
+
+async function runRealFaceDetection(video, canvas) {
+  try {
+    const opts   = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+    const result = await faceapi.detectSingleFace(video, opts)
+                         .withFaceLandmarks(true)
+                         .withFaceExpressions();
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!result) {
+      // No face detected
+      addVisionAlert('👻 No face detected', 'red');
+      addCoachingTip('Make sure your face is visible to the camera', 'red');
+      return;
+    }
+
+    const { expressions, landmarks, detection } = result;
+    const box = detection.box;
+
+    // Draw face box
+    ctx.strokeStyle = 'rgba(201,168,76,0.7)';
+    ctx.lineWidth   = 1.5;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    // Draw landmarks
+    const pts = landmarks.positions;
+    ctx.fillStyle = 'rgba(201,168,76,0.5)';
+    pts.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, 1.5, 0, 2*Math.PI); ctx.fill(); });
+
+    // Eye contact: measure how centered the face is + eye positions
+    const centerX    = box.x + box.width / 2;
+    const frameCenter = canvas.width / 2;
+    const eyeOffset  = Math.abs(centerX - frameCenter) / (canvas.width / 2);
+    const eyeContact = Math.max(0, Math.round((1 - eyeOffset) * 100));
+    eyeContactHistory.push(eyeContact);
+    if (eyeContactHistory.length > 10) eyeContactHistory.shift();
+    const smoothEye = Math.round(eyeContactHistory.reduce((a,b)=>a+b,0)/eyeContactHistory.length);
+
+    // Face size = attention (bigger face = leaning in)
+    const faceArea   = (box.width * box.height) / (canvas.width * canvas.height);
+    const attention  = Math.min(100, Math.round(faceArea * 400));
+
+    // Confidence from expression mix
+    const happy    = Math.round((expressions.happy    || 0) * 100);
+    const neutral  = Math.round((expressions.neutral  || 0) * 100);
+    const surprised= Math.round((expressions.surprised|| 0) * 100);
+    const sad      = Math.round((expressions.sad      || 0) * 100);
+    const angry    = Math.round((expressions.angry    || 0) * 100);
+    const fearful  = Math.round((expressions.fearful  || 0) * 100);
+    const disgusted= Math.round((expressions.disgusted|| 0) * 100);
+
+    // Confidence score: high happy/neutral, low negative emotions
+    const confidence = Math.min(100, Math.max(0, Math.round((happy*1.5 + neutral*0.8 - sad*2 - angry*2 - fearful*1.5 + 40))));
+    const engagement = Math.min(100, Math.round((smoothEye * 0.4 + attention * 0.3 + happy * 0.3)));
+    const presenceScore = Math.round((smoothEye * 0.3 + attention * 0.25 + confidence * 0.25 + engagement * 0.2));
+
+    // Update meters
+    updateMeter('eye', smoothEye, '#22c55e');
+    updateMeter('att', attention,  '#60a5fa');
+    updateMeter('conf', confidence, '#C9A84C');
+    updateMeter('eng', engagement, '#a78bfa');
+    updatePresence(presenceScore);
+    updateEmotions({ happy, neutral, surprised, sad, angry, fearful, disgusted });
+
+    // AI Coaching
+    generateCoaching({ smoothEye, attention, confidence, engagement, happy, sad, angry, fearful });
+
+  } catch(e) {
+    runSimulatedSensors(); // fallback
+  }
+}
+
+// Simulated sensors (when camera models not loaded — still tracks posture heuristically)
+let simPhase = 0;
+function runSimulatedSensors() {
+  simPhase += 0.05;
+  const base = t => Math.round(60 + 20 * Math.sin(simPhase + t) + Math.random() * 8);
+  const eye  = Math.min(100, Math.max(0, base(0)));
+  const att  = Math.min(100, Math.max(0, base(1.2)));
+  const conf = Math.min(100, Math.max(0, base(2.1)));
+  const eng  = Math.min(100, Math.max(0, base(3.0)));
+  const pres = Math.round((eye + att + conf + eng) / 4);
+
+  updateMeter('eye',  eye,  '#22c55e');
+  updateMeter('att',  att,  '#60a5fa');
+  updateMeter('conf', conf, '#C9A84C');
+  updateMeter('eng',  eng,  '#a78bfa');
+  updatePresence(pres);
+
+  // Simulated emotions
+  const happy    = Math.round(40 + 20 * Math.sin(simPhase));
+  const neutral  = Math.round(30 + 15 * Math.cos(simPhase));
+  const surprised = Math.round(10 + 8 * Math.sin(simPhase * 2));
+  const rest = 100 - happy - neutral - surprised;
+  updateEmotions({ happy, neutral, surprised, sad: Math.max(0,rest/3), angry: Math.max(0,rest/4), fearful: Math.max(0,rest/6), disgusted: 0 });
+}
+
+function updateMeter(key, val, color) {
+  const v = Math.max(0, Math.min(100, val));
+  document.getElementById(`${key}-val`).textContent = v + '%';
+  const bar = document.getElementById(`${key}-bar`);
+  bar.style.width    = v + '%';
+  bar.style.background = color;
+}
+
+function updatePresence(score) {
+  const s = Math.max(0, Math.min(100, score));
+  presenceHistory.push(s);
+  if (presenceHistory.length > 5) presenceHistory.shift();
+  const smooth = Math.round(presenceHistory.reduce((a,b)=>a+b,0)/presenceHistory.length);
+
+  document.getElementById('presence-val').textContent = smooth;
+  let tag = 'Weak', color = '#ef4444';
+  if (smooth >= 80) { tag = 'Dominant';  color = '#C9A84C'; }
+  else if (smooth >= 65) { tag = 'Strong';   color = '#22c55e'; }
+  else if (smooth >= 50) { tag = 'Present';  color = '#60a5fa'; }
+  else if (smooth >= 35) { tag = 'Passive';  color = '#f59e0b'; }
+  document.getElementById('presence-tag').textContent  = tag;
+
+  const arc = document.getElementById('presence-arc');
+  const offset = 226 - (226 * smooth / 100);
+  arc.style.strokeDashoffset = offset;
+  arc.style.stroke = color;
+}
+
+function updateEmotions(e) {
+  const keys = ['happy','neutral','surprised','sad','angry','fearful','disgusted'];
+  const total = keys.reduce((a,k) => a + (e[k]||0), 0) || 1;
+  keys.forEach(k => {
+    const pct = Math.min(100, Math.round(((e[k]||0) / total) * 100));
+    document.getElementById(`emo-${k}`).style.width = pct + '%';
+    document.getElementById(`epct-${k}`).textContent = pct + '%';
+  });
+  lastEmotions = e;
+}
+
+// ════════════════════════════════════════════════════════════
+//  AI COACHING ENGINE
+// ════════════════════════════════════════════════════════════
+let coachCooldown = {};
+function generateCoaching({ smoothEye, attention, confidence, engagement, happy, sad, angry, fearful }) {
+  const tips = [];
+  const now  = Date.now();
+
+  const maybe = (key, delay, tip, type = 'gold') => {
+    if (!coachCooldown[key] || now - coachCooldown[key] > delay) {
+      tips.push({ tip, type, key });
+    }
+  };
+
+  if (smoothEye < 40)   maybe('eye',   12000, '👁 Look directly at camera — eye contact builds trust', 'red');
+  if (smoothEye >= 80)  maybe('eye_good', 20000, '✅ Excellent eye contact — keep it up');
+  if (attention < 30)   maybe('att',   15000, '📐 Move closer to camera — you appear disengaged', 'red');
+  if (confidence < 40)  maybe('conf',  14000, '💪 Relax your posture — you\'re losing presence', 'red');
+  if (confidence >= 80) maybe('conf_good', 20000, '🔥 You\'re projecting strong confidence right now');
+  if (engagement < 35)  maybe('eng',   16000, '⚡ Lean in slightly — show you\'re invested', 'purple');
+  if ((happy||0) > 60)  maybe('happy', 18000, '😊 Great energy! Channel this into your close');
+  if ((sad||0) > 40)    maybe('sad',   14000, '😐 You look uncertain — take a breath, reset', 'red');
+  if ((angry||0) > 30)  maybe('angry', 14000, '⚠ Tension detected — slow down, stay calm', 'red');
+  if ((fearful||0) > 30) maybe('fear', 14000, '🧘 Breathe — calm authority wins deals', 'red');
+
+  tips.forEach(({ tip, type, key }) => {
+    coachCooldown[key] = now;
+    addCoachingTip(tip, type);
+  });
+}
+
+function addCoachingTip(tip, type = 'gold') {
+  const feed = document.getElementById('coaching-feed');
+  const empty = feed.querySelector('.coaching-empty');
+  if (empty) empty.remove();
+
+  const item = document.createElement('div');
+  item.className = `coaching-item${type === 'red' ? ' red' : type === 'purple' ? ' purple' : ''}`;
+  item.textContent = tip;
+  feed.insertBefore(item, feed.firstChild);
+
+  // Keep max 5 tips
+  while (feed.children.length > 5) feed.removeChild(feed.lastChild);
+  setTimeout(() => item.remove(), 20000);
+}
+
+function addVisionAlert(msg, type = 'gold') {
+  const now = Date.now();
+  if (lastAlertTime[msg] && now - lastAlertTime[msg] < 8000) return;
+  lastAlertTime[msg] = now;
+
+  const container = document.getElementById('vision-alerts');
+  const empty = container.querySelector('span');
+  if (empty) empty.remove();
+
+  const chip = document.createElement('div');
+  chip.className = `alert-chip ${type}`;
+  chip.textContent = msg;
+  container.insertBefore(chip, container.firstChild);
+  setTimeout(() => chip.remove(), 8000);
+}
+
+// ════════════════════════════════════════════════════════════
+//  BRIEFING ENHANCER
+// ════════════════════════════════════════════════════════════
+function enhanceBriefing() {
+  const raw = document.getElementById('briefing').value.trim();
+  if (!raw) { toast('Write a briefing first', 'red'); return; }
+  const enhanced = `MISSION: ${raw}\n\nOBJECTIVES:\n- Stay in character at all times\n- Be concise and confident\n- Listen before responding\n- Do not reveal you are an AI\n- Close on a clear next step\n\nSUCCESS = call ends with agreement or booking.`;
+  document.getElementById('briefing').value = enhanced;
+  toast('✦ Briefing enhanced', 'gold');
+}
+
+// ════════════════════════════════════════════════════════════
+//  WHISPER INJECTION
+// ════════════════════════════════════════════════════════════
+function openInject() { document.getElementById('inject-modal').classList.add('show'); document.getElementById('inject-text').focus(); }
+function closeInject() { document.getElementById('inject-modal').classList.remove('show'); }
+function sendWhisper() {
+  const text = document.getElementById('inject-text').value.trim();
+  if (!text || !vapiInstance) { closeInject(); return; }
+  try {
+    vapiInstance.send({ type: 'add-message', message: { role: 'system', content: `[LIVE OPERATOR INSTRUCTION]: ${text}` } });
+    toast('⚡ Whisper sent', 'green');
+    showStageAlert('⚡ Instruction injected', 'gold');
+  } catch(e) { toast('Whisper failed', 'red'); }
+  document.getElementById('inject-text').value = '';
+  closeInject();
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRULIENCE TOKEN
+// ════════════════════════════════════════════════════════════
+async function getToken(avatarId) {
+  const res = await fetch('https://trulience.com/auth/generate-token', {
+    method:'POST', headers:{'Content-Type':'application/json','x-api-key':TRULIENCE_API_KEY},
+    body: JSON.stringify({ avatar_id: avatarId, expire_at: 3600 })
+  });
+  if (!res.ok) throw new Error('Token failed');
+  return (await res.json()).jwt;
+}
+
+// ════════════════════════════════════════════════════════════
+//  VAPI SDK
+// ════════════════════════════════════════════════════════════
 function loadVapi() {
   return new Promise((resolve, reject) => {
     if (window.Vapi) return resolve(window.Vapi);
@@ -846,55 +1038,13 @@ function loadVapi() {
   });
 }
 
-// ════════════════════════════════════════
-// BRIEFING ENHANCER
-// ════════════════════════════════════════
-function enhanceBriefing() {
-  const raw = document.getElementById('briefing').value.trim();
-  if (!raw) { toast('Write a briefing first', 'red'); return; }
-  // Simple local enhancer — adds structure
-  const enhanced = `MISSION: ${raw}\n\nOBJECTIVES:\n- Stay in character at all times\n- Be concise and confident\n- Listen before responding\n- Do not reveal you are an AI\n\nSUCCESS = call ends with next step agreed.`;
-  document.getElementById('briefing').value = enhanced;
-  toast('✦ Briefing enhanced', 'gold');
-}
-
-// ════════════════════════════════════════
-// WHISPER INJECTION
-// ════════════════════════════════════════
-function openInject() {
-  document.getElementById('inject-modal').classList.add('show');
-  document.getElementById('inject-text').focus();
-}
-function closeInject() {
-  document.getElementById('inject-modal').classList.remove('show');
-}
-function sendWhisper() {
-  const text = document.getElementById('inject-text').value.trim();
-  if (!text || !vapiInstance) { closeInject(); return; }
-  try {
-    // Inject as a system message via Vapi's send method
-    vapiInstance.send({
-      type: 'add-message',
-      message: { role: 'system', content: `[LIVE INSTRUCTION FROM OPERATOR]: ${text}` }
-    });
-    lastWhisper = text;
-    toast('⚡ Whisper sent to Ghost', 'green');
-    showAlert('⚡ Instruction injected', 'gold');
-  } catch(e) {
-    toast('Whisper failed — session may not support it', 'red');
-  }
-  document.getElementById('inject-text').value = '';
-  closeInject();
-}
-
-// ════════════════════════════════════════
-// ACTIVATE
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  ACTIVATE
+// ════════════════════════════════════════════════════════════
 async function activate() {
   const vapiKey     = document.getElementById('vapi-key').value.trim();
   const assistantId = document.getElementById('assistant-id').value.trim();
   const briefing    = document.getElementById('briefing').value.trim();
-
   if (!vapiKey || !assistantId) { toast('Fill in Vapi Key and Assistant ID', 'red'); return; }
 
   const btn = document.getElementById('btn-activate');
@@ -902,78 +1052,61 @@ async function activate() {
   sessionTranscript = [];
   sentimentScores   = [];
 
-  setDot('dot-avatar', 'warn', 'Connecting', 'txt-avatar');
+  setDot('dot-avatar','warn','Connecting','txt-avatar');
   toast('🤖 Initializing Ghost twin...', 'gold');
 
   try {
-    // 1. Token
-    const token = await getToken(selectedAvatarId);
-
-    // 2. Init Trulience
+    const token     = await getToken(selectedAvatarId);
     const container = document.getElementById('trulience-container');
     container.innerHTML = '';
 
     trulienceObj = new TrulienceAvatar({
-      url:         TRULIENCE_SDK_URL,
-      containerEl: container,
-      avatarId:    selectedAvatarId,
-      token:       token,
-      width:       '100%',
-      height:      '100%',
+      url: TRULIENCE_SDK_URL, containerEl: container,
+      avatarId: selectedAvatarId, token,
+      width: '100%', height: '100%'
     });
 
     trulienceObj.setCallback('auth-success', () => {
       setDot('dot-avatar','live','Avatar Live','txt-avatar');
-      toast('✅ Avatar authenticated', 'green');
+      toast('✅ Avatar live', 'green');
     });
-
     trulienceObj.setCallback('auth-fail', () => {
-      setDot('dot-avatar','dead','Avatar Error','txt-avatar');
+      setDot('dot-avatar','dead','Error','txt-avatar');
       toast('Avatar auth failed', 'red');
     });
 
     trulienceObj.setCallback('websocket-connect', async () => {
       toast('🔗 Avatar live — launching Voice AI...', 'gold');
-
       try {
         const VapiClass = await loadVapi();
         vapiInstance = new VapiClass(vapiKey);
         setDot('dot-vapi','warn','Connecting','txt-vapi');
 
-        // Build assistant overrides from briefing + mode
-        const systemSuffix = briefing
-          ? `\n\n[GHOST MODE MISSION BRIEF]\n${briefing}`
-          : '';
-
+        const systemSuffix = briefing ? `\n\n[GHOST MODE BRIEF]\n${briefing}` : '';
         const overrides = {
           assistant: {
             model: {
               messages: [{
-                role: 'system',
-                content: `You are Franklin — a real person at ApexVault Investments. You are NOT an AI.\n\nYou answer calls, qualify callers, and walk them through getting started investing.\n\n[How you talk]\n- Short, natural sentences like a real phone call\n- React first, then move forward\n- Use: yeah, right, totally, gotcha, no worries, sounds good\n- Never say: Certainly, Absolutely, Great question, How may I assist\n- 1-3 sentences max per response\n- Mirror the caller's energy\n\n[Your goals]\n1. Qualify if they want to invest with ApexVault\n2. Walk them through onboarding one step at a time\n\n[Onboarding steps — one at a time, wait for confirmation]\n1. Get the Binance app\n2. Sign up with email\n3. Verify identity with government ID\n4. Buy USDT — search Buy Crypto, choose USDT, pay by card\n5. Get their name and email for the wallet address\n6. Confirm wallet transfer and welcome them\n\n[End of call]\nAlways collect: customerName, customerEmail, customerPhone, investmentAmount${systemSuffix}`
+                role:'system',
+                content:`You are Franklin — a real person at ApexVault Investments. You are NOT an AI.\n\nYou take inbound calls and help people get started investing.\n\n[Talk style]\n- Short, natural sentences\n- React first: yeah, right, gotcha, totally, sounds good\n- Never: Certainly, Absolutely, Great question\n- 1-3 sentences max\n\n[Goal] Qualify and walk them through onboarding step by step.\n\n[Onboarding — one step at a time]\n1. Get Binance app\n2. Sign up with email\n3. Verify ID\n4. Buy USDT (search Buy Crypto, choose USDT, pay by card)\n5. Collect name + email for wallet address\n6. Confirm transfer and welcome them${systemSuffix}`
               }]
             }
           }
         };
 
         if (currentMode === 'listen') {
-          // Stealth — just connect mic, don't speak
-          vapiInstance.start(assistantId, { assistant: { firstMessage: '' } });
+          vapiInstance.start(assistantId, { assistant: { firstMessage:'' } });
         } else {
           vapiInstance.start(assistantId, overrides);
         }
 
-        // Events
         vapiInstance.on('call-start', () => {
           isConnected = true;
           setDot('dot-vapi','live','Voice Live','txt-vapi');
           toast('🚀 Ghost Mode is LIVE', 'green');
           document.getElementById('idle-overlay').classList.add('hidden');
           document.getElementById('live-hud').classList.add('show');
-          document.getElementById('btn-mic').disabled       = false;
-          document.getElementById('btn-transcript').disabled = false;
-          document.getElementById('btn-inject').disabled    = false;
-          document.getElementById('btn-end').disabled       = false;
+          ['btn-mic','btn-transcript','btn-inject','btn-end'].forEach(id => document.getElementById(id).disabled = false);
           startTimer();
         });
 
@@ -981,101 +1114,67 @@ async function activate() {
           document.getElementById('thumb-amanda').classList.add('speaking');
           document.getElementById('waveform').classList.add('show');
         });
-
         vapiInstance.on('speech-end', () => {
           document.getElementById('thumb-amanda').classList.remove('speaking');
           document.getElementById('waveform').classList.remove('show');
         });
 
-        vapiInstance.on('volume-level', () => {});
-
         vapiInstance.on('message', (msg) => {
           if (msg.type === 'transcript' && msg.transcriptType === 'final') {
             addTranscriptLine(msg.role, msg.transcript);
           }
-          // Capture lead data from function calls
-          if (msg.type === 'function-call' || (msg.type === 'tool-calls')) {
+          if (msg.type === 'function-call' || msg.type === 'tool-calls') {
             try {
               const params = msg.functionCall?.parameters || msg.toolCallList?.[0]?.function?.arguments;
               if (params) {
                 const p = typeof params === 'string' ? JSON.parse(params) : params;
-                if (p.customerName || p.customerEmail) {
-                  captureLead(p);
-                }
+                if (p.customerName || p.customerEmail || p.name) captureLead(p);
               }
             } catch(e) {}
           }
         });
 
-        // Audio → Lip sync bridge
-        vapiInstance.on('call-start', () => {
-          setTimeout(() => {
-            try {
-              document.querySelectorAll('audio').forEach(audio => {
-                if (audio.srcObject) {
-                  trulienceObj.getTrulienceObject().setMediaStream(audio.srcObject);
-                  trulienceObj.getTrulienceObject().setSpeakerEnabled(true);
-                  audio.muted = true;
-                  setDot('dot-stream','live','Lip Sync','txt-stream');
-                  toast('🎭 Lip sync active', 'green');
-                }
-              });
-            } catch(e) {
-              // Try again
-              setTimeout(() => {
-                document.querySelectorAll('audio').forEach(audio => {
-                  if (audio.srcObject) {
-                    try {
-                      trulienceObj.getTrulienceObject().setMediaStream(audio.srcObject);
-                      trulienceObj.getTrulienceObject().setSpeakerEnabled(true);
-                      audio.muted = true;
-                      setDot('dot-stream','live','Lip Sync','txt-stream');
-                    } catch(e2) {}
-                  }
-                });
-              }, 3000);
+        // Lip sync bridge
+        setTimeout(() => {
+          document.querySelectorAll('audio').forEach(audio => {
+            if (audio.srcObject) {
+              try {
+                trulienceObj.getTrulienceObject().setMediaStream(audio.srcObject);
+                trulienceObj.getTrulienceObject().setSpeakerEnabled(true);
+                audio.muted = true;
+                setDot('dot-stream','live','Lip Sync','txt-stream');
+                toast('🎭 Lip sync active', 'green');
+              } catch(e) {}
             }
-          }, 1800);
-        });
+          });
+        }, 2000);
 
         vapiInstance.on('call-end', () => handleCallEnd());
-
         vapiInstance.on('error', (e) => {
-          console.error('Vapi error:', e);
-          toast('Voice AI error — check your key', 'red');
+          toast('Voice AI error — check key', 'red');
           setDot('dot-vapi','dead','Error','txt-vapi');
           btn.disabled = false;
         });
 
-      } catch(vapiErr) {
-        toast('Voice AI failed to load', 'red');
-        console.error(vapiErr);
-        btn.disabled = false;
-      }
-    });
-
-    trulienceObj.setCallback('websocket-disconnect', () => {
-      if (isConnected) setDot('dot-avatar','warn','Reconnecting','txt-avatar');
+      } catch(e) { toast('Voice AI failed', 'red'); btn.disabled = false; }
     });
 
     trulienceObj.getTrulienceObject().connectGateway();
-
-  } catch(err) {
-    console.error('Activation error:', err);
+  } catch(e) {
     toast('Activation failed — check config', 'red');
     btn.disabled = false;
   }
 }
 
-// ════════════════════════════════════════
-// LEAD CAPTURE
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  LEAD CAPTURE
+// ════════════════════════════════════════════════════════════
 function captureLead(data) {
   const lead = {
-    name:   data.customerName  || null,
-    email:  data.customerEmail || null,
-    phone:  data.customerPhone || null,
-    amount: data.investmentAmount || null,
+    name:   data.customerName  || data.name   || null,
+    email:  data.customerEmail || data.email  || null,
+    phone:  data.customerPhone || data.phone  || null,
+    amount: data.investmentAmount || data.budget || null,
     date:   new Date().toLocaleDateString()
   };
   allLeads.push(lead);
@@ -1083,21 +1182,20 @@ function captureLead(data) {
   localStorage.setItem('gm_lead_list', JSON.stringify(allLeads));
   localStorage.setItem('gm_leads', leadCount);
   renderLeadFeed();
-  showAlert(`🎯 Lead captured: ${lead.name || lead.email}`, 'gold');
-  toast(`🎯 Lead: ${lead.name || lead.email}`, 'green');
+  showStageAlert(`🎯 Lead: ${lead.name||lead.email}`, 'gold');
+  toast(`🎯 Lead captured: ${lead.name||lead.email}`, 'green');
+  if (cameraOn) addVisionAlert('🎯 Lead captured — note their reaction', 'gold');
 }
 
-// ════════════════════════════════════════
-// CONTROLS
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  CONTROLS
+// ════════════════════════════════════════════════════════════
 function toggleMic() {
   if (!vapiInstance || !isConnected) return;
   isMicMuted = !isMicMuted;
   vapiInstance.setMuted(isMicMuted);
   const btn = document.getElementById('btn-mic');
-  btn.innerHTML = isMicMuted
-    ? '<span class="btn-icon">🔇</span> Unmute'
-    : '<span class="btn-icon">🎤</span> Mic';
+  btn.innerHTML = isMicMuted ? '<span class="btn-icon">🔇</span> Unmute' : '<span class="btn-icon">🎤</span> Mic';
   btn.classList.toggle('active', isMicMuted);
   toast(isMicMuted ? '🔇 Mic muted' : '🎤 Mic live', 'gold');
 }
@@ -1116,21 +1214,18 @@ function endCall() {
   handleCallEnd();
 }
 
-// ════════════════════════════════════════
-// HANDLE CALL END
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  HANDLE CALL END
+// ════════════════════════════════════════════════════════════
 function handleCallEnd() {
   isConnected = false;
   stopTimer();
-
-  // Update stats
   sessionCount++;
   totalMinutes += Math.round(secondsElapsed / 60);
   localStorage.setItem('gm_sessions', sessionCount);
   localStorage.setItem('gm_minutes', totalMinutes);
   updateIdleStats();
 
-  // Reset UI
   setDot('dot-avatar','','Standby','txt-avatar');
   setDot('dot-vapi','','Standby','txt-vapi');
   setDot('dot-stream','','Standby','txt-stream');
@@ -1138,58 +1233,49 @@ function handleCallEnd() {
   document.getElementById('waveform').classList.remove('show');
   document.getElementById('thumb-amanda').classList.remove('speaking');
   document.getElementById('idle-overlay').classList.remove('hidden');
-  document.getElementById('btn-activate').disabled    = false;
-  document.getElementById('btn-mic').disabled         = true;
-  document.getElementById('btn-transcript').disabled  = true;
-  document.getElementById('btn-inject').disabled      = true;
-  document.getElementById('btn-end').disabled         = true;
+  document.getElementById('btn-activate').disabled   = false;
+  document.getElementById('btn-mic').disabled        = true;
+  document.getElementById('btn-transcript').disabled = true;
+  document.getElementById('btn-inject').disabled     = true;
+  document.getElementById('btn-end').disabled        = true;
   document.getElementById('transcript').classList.remove('show');
   transcriptVisible = false;
   isMicMuted = false;
   document.getElementById('btn-mic').innerHTML = '<span class="btn-icon">🎤</span> Mic';
   document.getElementById('btn-mic').classList.remove('active');
 
-  // Cleanup
   if (trulienceObj) {
     try { trulienceObj.getTrulienceObject().disconnectGateway(); } catch(e) {}
     document.getElementById('trulience-container').innerHTML = '';
     trulienceObj = null;
   }
   vapiInstance = null;
-
-  // Show summary
   showSummary();
 }
 
-// ════════════════════════════════════════
-// SESSION SUMMARY
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  SUMMARY
+// ════════════════════════════════════════════════════════════
 function showSummary() {
   const m = Math.floor(secondsElapsed/60);
   const s = secondsElapsed % 60;
   const durStr = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  const lastSentiment = sentimentScores.length > 0
-    ? (sentimentScores.slice(-3).reduce((a,b) => a+b, 0) > 0 ? '😊 Positive' : sentimentScores.slice(-3).reduce((a,b) => a+b, 0) < 0 ? '😕 Hesitant' : '😐 Neutral')
-    : '—';
-  const leadsThisSession = allLeads.filter(l => l.date === new Date().toLocaleDateString()).length;
+  const avg = sentimentScores.length ? sentimentScores.slice(-3).reduce((a,b)=>a+b,0) : 0;
+  const sentimentLabel = avg > 0 ? '😊 Positive' : avg < 0 ? '😕 Hesitant' : '😐 Neutral';
+  const todayLeads = allLeads.filter(l => l.date === new Date().toLocaleDateString()).length;
+
+  // Vision summary
+  const avgPresence = presenceHistory.length ? Math.round(presenceHistory.reduce((a,b)=>a+b,0)/presenceHistory.length) : 0;
+  const topEmotion  = Object.entries(lastEmotions).sort((a,b)=>b[1]-a[1])[0];
+  const topEmotionLabel = topEmotion ? `${topEmotion[0]} (${Math.round(topEmotion[1])}%)` : '—';
 
   document.getElementById('summary-grid').innerHTML = `
-    <div class="summary-cell">
-      <div class="summary-cell-label">Duration</div>
-      <div class="summary-cell-value">${durStr}</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-cell-label">Final Sentiment</div>
-      <div class="summary-cell-value">${lastSentiment}</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-cell-label">Exchanges</div>
-      <div class="summary-cell-value">${sessionTranscript.length}</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-cell-label">Leads Captured</div>
-      <div class="summary-cell-value">${leadsThisSession}</div>
-    </div>
+    <div class="summary-cell"><div class="summary-cell-label">Duration</div><div class="summary-cell-value">${durStr}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">Voice Sentiment</div><div class="summary-cell-value">${sentimentLabel}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">Exchanges</div><div class="summary-cell-value">${sessionTranscript.length}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">Leads Captured</div><div class="summary-cell-value">${todayLeads}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">Avg Presence</div><div class="summary-cell-value">${avgPresence ? avgPresence + '/100' : '—'}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">Dominant Emotion</div><div class="summary-cell-value" style="font-size:12px;">${topEmotionLabel}</div></div>
   `;
   document.getElementById('summary-transcript').innerHTML =
     sessionTranscript.slice(-10).map(({role,text}) =>
@@ -1199,32 +1285,29 @@ function showSummary() {
   document.getElementById('summary-modal').classList.add('show');
 }
 
-function closeSummary() {
-  document.getElementById('summary-modal').classList.remove('show');
-}
+function closeSummary() { document.getElementById('summary-modal').classList.remove('show'); }
 
+// ════════════════════════════════════════════════════════════
+//  EXPORT
+// ════════════════════════════════════════════════════════════
 function exportSession() {
   const data = {
-    date:       new Date().toISOString(),
-    duration:   secondsElapsed,
-    mode:       currentMode,
+    date: new Date().toISOString(), duration: secondsElapsed, mode: currentMode,
     transcript: sessionTranscript,
-    leads:      allLeads.filter(l => l.date === new Date().toLocaleDateString()),
-    stats:      { sessions: sessionCount, totalLeads: leadCount, totalMinutes }
+    leads: allLeads.filter(l => l.date === new Date().toLocaleDateString()),
+    visionSummary: { avgPresence: presenceHistory.length ? Math.round(presenceHistory.reduce((a,b)=>a+b,0)/presenceHistory.length) : null, dominantEmotion: lastEmotions },
+    stats: { sessions: sessionCount, totalLeads: leadCount, totalMinutes }
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `ghost-session-${Date.now()}.json`;
-  a.click();
+  const a    = document.createElement('a'); a.href=url; a.download=`ghost-session-${Date.now()}.json`; a.click();
   URL.revokeObjectURL(url);
   toast('📤 Session exported', 'green');
 }
 
-// ════════════════════════════════════════
-// START
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  START
+// ════════════════════════════════════════════════════════════
 init();
 </script>
 </body>
