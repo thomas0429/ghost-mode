@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ghost Mode — Imperium</title>
+  <script src="https://trulience.com/sdk/trulience.sdk.js"></script>
+  <style>
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #F2D27A;
+      --dark: #04060F;
+      --panel: #0A0D1C;
+      --surface: #0F1325;
+      --border: rgba(201,168,76,0.2);
+      --text: #E8E8F0;
+      --muted: rgba(232,232,240,0.45);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .logo {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, var(--gold), var(--gold-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #444;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .dot.live { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+    .dot.connecting { background: var(--gold); box-shadow: 0 0 10px var(--gold); animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── MAIN LAYOUT ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 280px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-section {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+
+    /* AVATAR CARD */
+    .avatar-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .avatar-card:hover { border-color: var(--border); background: var(--surface); }
+    .avatar-card.active { border-color: var(--gold); background: rgba(201,168,76,0.07); }
+    .avatar-thumb {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+    .avatar-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-info { flex: 1; }
+    .avatar-name { font-size: 13px; font-weight: 600; }
+    .avatar-role { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .avatar-sel {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px;
+      transition: all 0.2s;
+    }
+    .avatar-card.active .avatar-sel {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--dark);
+    }
+
+    /* BRIEFING */
+    .briefing-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .briefing-box textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.6;
+      resize: none;
+      min-height: 90px;
+      font-family: inherit;
+    }
+    .briefing-box textarea::placeholder { color: var(--muted); }
+
+    /* VAPI KEY INPUT */
+    .key-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      font-family: monospace;
+      transition: border 0.2s;
+    }
+    .key-input:focus { border-color: var(--gold); }
+    .key-input::placeholder { color: var(--muted); font-family: inherit; }
+
+    /* TIMER */
+    .timer-display {
+      text-align: center;
+      padding: 10px 0 4px;
+    }
+    .timer-value {
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, var(--gold), var(--gold-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+
+    /* ── AVATAR STAGE ── */
+    .stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #0d1028 0%, #04060F 70%);
+    }
+
+    /* Trulience iframe takes full stage */
+    #trulience-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #trulience-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* IDLE OVERLAY — shown before call starts */
+    .idle-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 5;
+      background: radial-gradient(ellipse at center, #0d1028 0%, #04060F 70%);
+      transition: opacity 0.6s;
+    }
+    .idle-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .orb {
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      border: 2px solid rgba(201,168,76,0.3);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .orb::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 1px solid rgba(201,168,76,0.12);
+      animation: ripple 3s ease-out infinite;
+    }
+    .orb::after {
+      content: '';
+      position: absolute;
+      inset: -20px;
+      border-radius: 50%;
+      border: 1px solid rgba(201,168,76,0.06);
+      animation: ripple 3s ease-out infinite 1s;
+    }
+    @keyframes ripple {
+      0%   { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.3); opacity: 0; }
+    }
+    .orb-icon { font-size: 52px; }
+
+    .idle-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--gold), var(--gold-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .idle-sub { font-size: 13px; color: var(--muted); text-align: center; max-width: 300px; line-height: 1.6; }
+
+    /* ── BOTTOM CONTROLS ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 18px 28px;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #C9A84C, #F2D27A);
+      color: #04060F;
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(201,168,76,0.35); }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.4);
+      color: #ef4444;
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.25); }
+
+    .btn-ghost {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .btn-ghost.active { border-color: #ef4444; color: #ef4444; }
+
+    .btn-icon { font-size: 16px; }
+
+    /* TRANSCRIPT PANEL */
+    .transcript-panel {
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 320px;
+      max-height: 220px;
+      background: rgba(4,6,15,0.88);
+      border-top: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-radius: 12px 0 0 0;
+      padding: 12px 14px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.6;
+      display: none;
+      z-index: 6;
+      backdrop-filter: blur(10px);
+    }
+    .transcript-panel.show { display: block; }
+    .transcript-line { margin-bottom: 6px; }
+    .transcript-line .who { font-weight: 700; margin-right: 6px; }
+    .transcript-line .who.ai { color: var(--gold); }
+    .transcript-line .who.user { color: #60a5fa; }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      top: 80px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 22px;
+      font-size: 13px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+    .toast.gold { border-color: var(--gold); color: var(--gold); }
+    .toast.red  { border-color: #ef4444; color: #ef4444; }
+    .toast.green { border-color: #22c55e; color: #22c55e; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">Imperium</div>
+  <div class="badge">Ghost Mode</div>
+  <div class="status-dot">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Standby</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- AVATAR SELECTION -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Your AI Twin</div>
+
+      <div class="avatar-card active" data-avatar="8512990957179848858" id="card-amanda">
+        <div class="avatar-thumb">🎭</div>
+        <div class="avatar-info">
+          <div class="avatar-name">Amanda</div>
+          <div class="avatar-role">Executive Avatar</div>
+        </div>
+        <div class="avatar-sel">✓</div>
+      </div>
+
+      <div class="avatar-card" data-avatar="8512990957179848858" id="card-custom" style="margin-top:8px; opacity:0.5; pointer-events:none;">
+        <div class="avatar-thumb">➕</div>
+        <div class="avatar-info">
+          <div class="avatar-name">Add Your Face</div>
+          <div class="avatar-role">Upgrade to Starter</div>
+        </div>
+        <div class="avatar-sel"></div>
+      </div>
+    </div>
+
+    <!-- MEETING BRIEFING -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Meeting Briefing</div>
+      <div class="briefing-box">
+        <textarea id="briefing" placeholder="Brief your AI twin... e.g. 'Negotiate the SaaS contract. Budget is $50k max. Do NOT agree to any exclusivity clauses.'"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- VAPI KEY -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Vapi Key</div>
+      <input class="key-input" id="vapi-key" type="password"
+        value="1bc8edc7-3e80-425b-95a0-8a58145288fc"
+        placeholder="Vapi public key..." />
+    </div>
+
+    <!-- ASSISTANT ID -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Assistant (Franklin)</div>
+      <input class="key-input" id="assistant-id" type="text"
+        value="1752f04a-fba7-47d8-8210-78c8c291f26d"
+        placeholder="Assistant ID..." />
+    </div>
+
+    <!-- TIMER -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Session Duration</div>
+      <div class="timer-display">
+        <div class="timer-value" id="timer">00:00</div>
+        <div class="timer-label">Minutes : Seconds</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage">
+
+    <!-- IDLE STATE -->
+    <div class="idle-overlay" id="idle-overlay">
+      <div class="orb">
+        <div class="orb-icon">👤</div>
+      </div>
+      <div class="idle-title">Ghost Mode Ready</div>
+      <div class="idle-sub">Configure your briefing, select your avatar, then activate. Your AI twin will handle the meeting — no one will know.</div>
+    </div>
+
+    <!-- AVATAR CONTAINER — Trulience renders here -->
+    <div id="trulience-container"></div>
+
+    <!-- TRANSCRIPT -->
+    <div class="transcript-panel" id="transcript"></div>
+
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <button class="btn btn-primary" id="btn-activate" onclick="activate()">
+    <span class="btn-icon">🚀</span> Activate Ghost Mode
+  </button>
+  <button class="btn btn-ghost" id="btn-mic" onclick="toggleMic()" disabled>
+    <span class="btn-icon">🎤</span> Mic
+  </button>
+  <button class="btn btn-ghost" id="btn-transcript" onclick="toggleTranscript()" disabled>
+    <span class="btn-icon">📋</span> Transcript
+  </button>
+  <button class="btn btn-danger" id="btn-end" onclick="endCall()" disabled>
+    <span class="btn-icon">⏹</span> End Session
+  </button>
+</div>
+
+<!-- VAPI SDK — loaded dynamically to avoid CORS issues -->
+<script>
+// ══════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════
+const TRULIENCE_SDK_URL = 'https://trulience.com/sdk/trulience.sdk.js';
+const TRULIENCE_API_KEY = 'tru_live_zTGK30Un_QT08BnN9C8OrOov3PSfN55jdsdqtDDwp';
+const TRULIENCE_AVATAR_ID = '8512990957179848858';
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let trulienceObj = null;
+let vapiInstance = null;
+let isConnected = false;
+let isMicMuted = false;
+let timerInterval = null;
+let secondsElapsed = 0;
+let transcriptVisible = false;
+let selectedAvatarId = TRULIENCE_AVATAR_ID;
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function toast(msg, type = 'gold') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function setStatus(text, state) {
+  document.getElementById('status-text').textContent = text;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'dot ' + (state || '');
+}
+
+function startTimer() {
+  secondsElapsed = 0;
+  timerInterval = setInterval(() => {
+    secondsElapsed++;
+    const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+    const s = String(secondsElapsed % 60).padStart(2, '0');
+    document.getElementById('timer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  document.getElementById('timer').textContent = '00:00';
+}
+
+function addTranscriptLine(role, text) {
+  const panel = document.getElementById('transcript');
+  const line = document.createElement('div');
+  line.className = 'transcript-line';
+  const who = document.createElement('span');
+  who.className = `who ${role}`;
+  who.textContent = role === 'ai' ? '🤖 Ghost:' : '👤 Them:';
+  line.appendChild(who);
+  line.appendChild(document.createTextNode(text));
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ══════════════════════════════════════════════
+// AVATAR SELECTION
+// ══════════════════════════════════════════════
+document.querySelectorAll('.avatar-card[data-avatar]').forEach(card => {
+  card.addEventListener('click', () => {
+    if (isConnected) return;
+    document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selectedAvatarId = card.dataset.avatar;
+  });
+});
+
+// ══════════════════════════════════════════════
+// GET FRESH JWT TOKEN
+// ══════════════════════════════════════════════
+async function getToken(avatarId) {
+  const res = await fetch('https://trulience.com/auth/generate-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': TRULIENCE_API_KEY
+    },
+    body: JSON.stringify({ avatar_id: avatarId, expire_at: 3600 })
+  });
+  if (!res.ok) throw new Error('Token generation failed');
+  const data = await res.json();
+  return data.jwt;
+}
+
+// ══════════════════════════════════════════════
+// LOAD VAPI SDK DYNAMICALLY
+// ══════════════════════════════════════════════
+function loadVapi() {
+  return new Promise((resolve, reject) => {
+    if (window.Vapi) return resolve(window.Vapi);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js';
+    s.onload = () => resolve(window.Vapi);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ══════════════════════════════════════════════
+// ACTIVATE — Main entry point
+// ══════════════════════════════════════════════
+async function activate() {
+  const vapiKey = document.getElementById('vapi-key').value.trim();
+  const assistantId = document.getElementById('assistant-id').value.trim();
+  const briefing = document.getElementById('briefing').value.trim();
+
+  if (!vapiKey || !assistantId) {
+    toast('Fill in Vapi Key and Assistant ID', 'red');
+    return;
+  }
+
+  const btn = document.getElementById('btn-activate');
+  btn.disabled = true;
+  setStatus('Initializing...', 'connecting');
+  toast('🤖 Spinning up your Ghost twin...', 'gold');
+
+  try {
+    // 1. Get fresh Trulience JWT
+    const token = await getToken(selectedAvatarId);
+
+    // 2. Init Trulience Avatar
+    const container = document.getElementById('trulience-container');
+    container.innerHTML = '';
+
+    trulienceObj = new TrulienceAvatar({
+      url: TRULIENCE_SDK_URL,
+      containerEl: container,
+      avatarId: selectedAvatarId,
+      token: token,
+      width: '100%',
+      height: '100%',
+    });
+
+    // 3. Trulience event callbacks
+    trulienceObj.setCallback('auth-success', () => {
+      toast('✅ Avatar authenticated', 'green');
+    });
+
+    trulienceObj.setCallback('auth-fail', (e) => {
+      toast('Avatar auth failed — retrying...', 'red');
+      console.error('Auth fail:', e);
+    });
+
+    trulienceObj.setCallback('websocket-connect', async () => {
+      toast('🔗 Avatar connected — launching VAPI...', 'gold');
+      setStatus('Avatar Live', 'live');
+
+      // 4. Load and start Vapi
+      try {
+        const VapiClass = await loadVapi();
+        vapiInstance = new VapiClass(vapiKey);
+
+        // Inject briefing into assistant overrides
+        const overrides = briefing ? {
+          assistant: {
+            firstMessage: `I'm ready. Briefing loaded: ${briefing.substring(0, 200)}`
+          }
+        } : {};
+
+        vapiInstance.start(assistantId, overrides);
+
+        vapiInstance.on('call-start', () => {
+          isConnected = true;
+          setStatus('Ghost Mode LIVE', 'live');
+          toast('🚀 Ghost Mode is LIVE', 'green');
+          document.getElementById('idle-overlay').classList.add('hidden');
+          document.getElementById('btn-mic').disabled = false;
+          document.getElementById('btn-transcript').disabled = false;
+          document.getElementById('btn-end').disabled = false;
+          startTimer();
+        });
+
+        vapiInstance.on('speech-start', () => {
+          // Avatar is speaking
+        });
+
+        vapiInstance.on('speech-end', () => {
+          // Avatar finished speaking
+        });
+
+        vapiInstance.on('message', (msg) => {
+          if (msg.type === 'transcript') {
+            if (msg.role === 'assistant') addTranscriptLine('ai', msg.transcript);
+            else if (msg.role === 'user') addTranscriptLine('user', msg.transcript);
+          }
+        });
+
+        vapiInstance.on('volume-level', (vol) => {
+          // Could visualize audio level
+        });
+
+        // Route Vapi audio → Trulience lip-sync
+        vapiInstance.on('call-start', () => {
+          // Give Daily.co a moment to initialize audio
+          setTimeout(() => {
+            try {
+              // Find Vapi's audio element and pass its stream to Trulience
+              const audioEls = document.querySelectorAll('audio');
+              audioEls.forEach(audio => {
+                if (audio.srcObject) {
+                  trulienceObj.getTrulienceObject().setMediaStream(audio.srcObject);
+                  trulienceObj.getTrulienceObject().setSpeakerEnabled(true);
+                  audio.muted = true; // prevent double audio
+                }
+              });
+            } catch(e) { console.warn('Stream attach attempt:', e); }
+          }, 2000);
+        });
+
+        vapiInstance.on('call-end', () => {
+          handleCallEnd();
+        });
+
+        vapiInstance.on('error', (e) => {
+          console.error('Vapi error:', e);
+          toast('Connection error — check your key', 'red');
+          setStatus('Error', '');
+          btn.disabled = false;
+        });
+
+      } catch (vapiErr) {
+        toast('Vapi SDK load failed', 'red');
+        console.error(vapiErr);
+        btn.disabled = false;
+      }
+    });
+
+    trulienceObj.setCallback('websocket-disconnect', () => {
+      if (isConnected) {
+        setStatus('Reconnecting...', 'connecting');
+      }
+    });
+
+    // 5. Connect avatar gateway
+    trulienceObj.getTrulienceObject().connectGateway();
+
+  } catch (err) {
+    console.error('Activation error:', err);
+    toast('Activation failed — check config', 'red');
+    setStatus('Error', '');
+    btn.disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════
+// CONTROLS
+// ══════════════════════════════════════════════
+function toggleMic() {
+  if (!vapiInstance || !isConnected) return;
+  isMicMuted = !isMicMuted;
+  vapiInstance.setMuted(isMicMuted);
+  const btn = document.getElementById('btn-mic');
+  btn.innerHTML = isMicMuted
+    ? '<span class="btn-icon">🔇</span> Unmute'
+    : '<span class="btn-icon">🎤</span> Mic';
+  btn.classList.toggle('active', isMicMuted);
+  toast(isMicMuted ? '🔇 Microphone muted' : '🎤 Microphone live', 'gold');
+}
+
+function toggleTranscript() {
+  transcriptVisible = !transcriptVisible;
+  document.getElementById('transcript').classList.toggle('show', transcriptVisible);
+  const btn = document.getElementById('btn-transcript');
+  btn.classList.toggle('active', transcriptVisible);
+}
+
+function endCall() {
+  if (!isConnected) return;
+  if (vapiInstance) vapiInstance.stop();
+  handleCallEnd();
+}
+
+function handleCallEnd() {
+  isConnected = false;
+  stopTimer();
+  setStatus('Session Ended', '');
+  toast('Session ended. Your Ghost handled it.', 'gold');
+  document.getElementById('idle-overlay').classList.remove('hidden');
+  document.getElementById('btn-activate').disabled = false;
+  document.getElementById('btn-mic').disabled = true;
+  document.getElementById('btn-transcript').disabled = true;
+  document.getElementById('btn-end').disabled = true;
+  document.getElementById('transcript').classList.remove('show');
+  transcriptVisible = false;
+  isMicMuted = false;
+  document.getElementById('btn-mic').innerHTML = '<span class="btn-icon">🎤</span> Mic';
+  document.getElementById('btn-mic').classList.remove('active');
+  if (trulienceObj) {
+    try { trulienceObj.getTrulienceObject().disconnectGateway(); } catch(e) {}
+    document.getElementById('trulience-container').innerHTML = '';
+    trulienceObj = null;
+  }
+  vapiInstance = null;
+}
+</script>
+</body>
+</html>
