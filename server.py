@@ -21,6 +21,16 @@ SERPER_API_KEY     = os.environ.get("SERPER_API_KEY", "")
 OPENAI_API_KEY     = os.environ.get("OPENAI_API_KEY", "")
 WEATHER_API_KEY    = os.environ.get("WEATHER_API_KEY", "")
 
+# Security — Vapi webhook secret
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+
+def verify_request():
+    """Verify the request comes from Vapi using the secret header"""
+    if not WEBHOOK_SECRET:
+        return True  # No secret set — allow all (dev mode)
+    auth = request.headers.get("X-Imperium-Secret", "")
+    return auth == WEBHOOK_SECRET
+
 # ─────────────────────────────────────────
 # HEALTH CHECK
 # ─────────────────────────────────────────
@@ -39,6 +49,8 @@ def health():
 # ─────────────────────────────────────────
 @app.route("/searchWeb", methods=["POST"])
 def search_web():
+    if not verify_request():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True)
     args = extract_args(data)
     query = args.get("query", "")
@@ -54,6 +66,8 @@ def search_web():
 # ─────────────────────────────────────────
 @app.route("/browseWebsite", methods=["POST"])
 def browse_website():
+    if not verify_request():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True)
     args = extract_args(data)
     url = args.get("url", "")
@@ -76,6 +90,8 @@ def browse_website():
 # ─────────────────────────────────────────
 @app.route("/askAI", methods=["POST"])
 def ask_ai():
+    if not verify_request():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True)
     args = extract_args(data)
     prompt = args.get("prompt", "")
@@ -102,6 +118,8 @@ def ask_ai():
 # ─────────────────────────────────────────
 @app.route("/getLiveData", methods=["POST"])
 def get_live_data():
+    if not verify_request():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True)
     args = extract_args(data)
     data_type = args.get("dataType", "")
@@ -131,6 +149,8 @@ def get_live_data():
 # ─────────────────────────────────────────
 @app.route("/lookupLead", methods=["POST"])
 def lookup_lead():
+    if not verify_request():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(force=True)
     args = extract_args(data)
     name = args.get("name", "")
