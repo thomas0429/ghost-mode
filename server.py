@@ -44,10 +44,10 @@ def search_web():
     query = args.get("query", "")
 
     if not query:
-        return vapi_response("I need a search query.")
+        return vapi_response("I need a search query.", data)
 
     result = do_search(query)
-    return vapi_response(result)
+    return vapi_response(result, data)
 
 # ─────────────────────────────────────────
 # TOOL 2: browseWebsite
@@ -59,17 +59,17 @@ def browse_website():
     url = args.get("url", "")
 
     if not url:
-        return vapi_response("I need a URL to visit.")
+        return vapi_response("I need a URL to visit.", data)
 
     try:
         jina_url = f"https://r.jina.ai/{url}"
         r = requests.get(jina_url, timeout=15, headers={"Accept": "text/plain"})
         content = r.text[:1500].strip()
         if not content:
-            return vapi_response(f"Could not read {url}")
-        return vapi_response(content)
+            return vapi_response(f"Could not read {url}", data)
+        return vapi_response(content, data)
     except Exception as e:
-        return vapi_response(f"Could not browse that site right now.")
+        return vapi_response(f"Could not browse that site right now.", data)
 
 # ─────────────────────────────────────────
 # TOOL 3: askAI
@@ -82,20 +82,20 @@ def ask_ai():
     context = args.get("context", "")
 
     if not prompt:
-        return vapi_response("I need a question to research.")
+        return vapi_response("I need a question to research.", data)
 
     # Use OpenAI if available, otherwise use Jina.ai to search + read
     if OPENAI_API_KEY:
         try:
             result = call_openai(f"Context: {context}\n\nQuestion: {prompt}" if context else prompt)
-            return vapi_response(result)
+            return vapi_response(result, data)
         except:
             pass
 
     # Free fallback: search + read top result via Jina
     search_query = prompt[:200]
     result = do_search(search_query)
-    return vapi_response(f"Here's what I found: {result}")
+    return vapi_response(f"Here's what I found: {result}", data)
 
 # ─────────────────────────────────────────
 # TOOL 4: getLiveData
@@ -122,9 +122,9 @@ def get_live_data():
             result = get_forex(query)
         else:
             result = do_search(f"{query} live data today {data_type}")
-        return vapi_response(result)
+        return vapi_response(result, data)
     except Exception as e:
-        return vapi_response(f"Could not fetch that data right now.")
+        return vapi_response(f"Could not fetch that data right now.", data)
 
 # ─────────────────────────────────────────
 # TOOL 5: lookupLead
@@ -139,7 +139,7 @@ def lookup_lead():
     goal = args.get("goal", "contact info")
 
     if not name:
-        return vapi_response("I need a name to look up.")
+        return vapi_response("I need a name to look up.", data)
 
     query = f"{name} {city} {industry} {goal}".strip()
     result = do_search(query)
@@ -147,9 +147,9 @@ def lookup_lead():
     # Also try to read their website if it's a company
     try:
         site_result = do_search(f"{name} official website")
-        return vapi_response(f"Intel on {name}:\n{result}\n\n{site_result}")
+        return vapi_response(f"Intel on {name}:\n{result}\n\n{site_result}", data)
     except:
-        return vapi_response(f"Intel on {name}:\n{result}")
+        return vapi_response(f"Intel on {name}:\n{result}", data)
 
 # ─────────────────────────────────────────
 # HELPER: Universal Search (Serper if key exists, else DuckDuckGo)
@@ -311,23 +311,55 @@ def call_openai(prompt):
 # HELPER: Extract Vapi tool arguments
 # ─────────────────────────────────────────
 def extract_args(data):
+    """Extract tool arguments from any Vapi payload format"""
     try:
-        tool_calls = data.get("message", {}).get("toolCalls", [])
+        msg = data.get("message", data)
+
+        # Format 1: message.toolCallList (server-side tool calls)
+        tool_list = msg.get("toolCallList", [])
+        if tool_list:
+            args = tool_list[0].get("function", {}).get("arguments", {})
+            if isinstance(args, str):
+                args = json.loads(args)
+            return args
+
+        # Format 2: message.toolCalls
+        tool_calls = msg.get("toolCalls", [])
         if tool_calls:
             args = tool_calls[0].get("function", {}).get("arguments", {})
             if isinstance(args, str):
                 args = json.loads(args)
             return args
+
+        # Format 3: flat payload (direct post)
+        if any(k in data for k in ["query", "url", "prompt", "dataType", "name"]):
+            return data
+
     except:
         pass
-    return data
+    return {}
+
+def get_tool_call_id(data):
+    """Extract toolCallId for proper Vapi response"""
+    try:
+        msg = data.get("message", data)
+        tool_list = msg.get("toolCallList", [])
+        if tool_list:
+            return tool_list[0].get("id", "imperium")
+        tool_calls = msg.get("toolCalls", [])
+        if tool_calls:
+            return tool_calls[0].get("id", "imperium")
+    except:
+        pass
+    return "imperium"
 
 # ─────────────────────────────────────────
 # HELPER: Format Vapi response
 # ─────────────────────────────────────────
-def vapi_response(result_text):
+def vapi_response(result_text, data=None):
+    tool_id = get_tool_call_id(data) if data else "imperium"
     return jsonify({
-        "results": [{"toolCallId": "imperium", "result": str(result_text)}]
+        "results": [{"toolCallId": tool_id, "result": str(result_text)}]
     })
 
 # ─────────────────────────────────────────
