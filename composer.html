@@ -164,7 +164,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 <div class="toast" id="toast"></div>
 
 <script>
-const VAPI_KEY = "aa3e308f-06ad-45b3-9a6b-6004d0c97edf";
+// 🔐 Paste your Vapi Private Key below — never share this file publicly
+const VAPI_KEY = localStorage.getItem("imperium_vapi_key") || "";
 const VAPI_BASE = "https://api.vapi.ai";
 
 const ASSISTANT_IDS = [
@@ -212,6 +213,14 @@ const EMAIL_TEMPLATES = [
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
+  // Prompt for key if not saved
+  if (!VAPI_KEY) {
+    const key = prompt("🔐 Enter your Vapi Private Key to continue:");
+    if (!key) { document.getElementById("status-bar").textContent = "No API key — reload to try again."; return; }
+    localStorage.setItem("imperium_vapi_key", key.trim());
+    location.reload();
+    return;
+  }
   try {
     const results = await Promise.all(ASSISTANT_IDS.map(id =>
       fetch(`${VAPI_BASE}/assistant/${id}`, {
